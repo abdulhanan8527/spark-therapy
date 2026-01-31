@@ -3,8 +3,7 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      '@babel/plugin-transform-optional-chaining',
-      'react-native-reanimated/plugin', // This must be the last plugin
+      // Removed problematic plugins for Expo Go compatibility
     ],
   };
 };
