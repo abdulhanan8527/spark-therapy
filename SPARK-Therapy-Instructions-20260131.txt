@@ -1,0 +1,65 @@
+SPARK Therapy Mobile App - Client Installation Guide
+====================================================
+
+Build Date: Sat Jan 31 06:05:24 PM PKT 2026
+Configured Backend: https://client-backend-production.com
+
+FILES INCLUDED:
+===============
+
+1. SPARK-Therapy-Android-YYYYMMDD.apk
+   - Android application package
+   - Install on Android devices (Android 6.0+)
+   - Size: ~
+
+2. SPARK-Therapy-iOS-YYYYMMDD.ipa (if built)
+   - iOS application package
+   - Requires Apple Configurator or MDM for installation
+   - Size: ~
+
+INSTALLATION INSTRUCTIONS:
+=========================
+
+ANDROID:
+--------
+1. Transfer the APK file to Android device
+2. Enable "Install from unknown sources" in Settings
+3. Open the APK file to install
+4. Launch the SPARK Therapy app
+
+IOS:
+----
+1. Connect iOS device to computer with iTunes/Apple Configurator
+2. Drag and drop the IPA file to install
+3. Or use your company's MDM solution
+4. Trust the developer profile in Settings > General > Device Management
+
+CONFIGURATION:
+==============
+The app is pre-configured to connect to:
+Backend URL: https://client-backend-production.com
+API Endpoint: https://client-backend-production.com/api
+
+TESTING:
+========
+After installation, test these features:
+1. Registration screen - should connect to your backend
+2. Login functionality
+3. All API calls should work with your server
+4. PDF viewing and other features
+
+SUPPORT:
+========
+If you encounter issues:
+- Verify backend server is accessible
+- Check SSL certificates (HTTPS)
+- Ensure CORS is properly configured
+- Confirm API endpoints match expected format
+
+Backend API Requirements:
+- POST /api/auth/register
+- POST /api/auth/login  
+- GET /api/health
+- All other endpoints as documented
+
+Contact: Your development team for technical support

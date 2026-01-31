@@ -1,0 +1,10 @@
+nohup: ignoring input
+env: load .env
+env: export REACT_APP_API_BASE_URL
+Starting project at /home/abdul-hanan/Downloads/SPARKTherapy
+› Port 8081 is running this app in another window
+  /home/abdul-hanan/Downloads/SPARKTherapy (pid 121301)
+Input is required, but 'npx expo' is in non-interactive mode.
+Required input:
+> Use port 8082 instead?
+› Skipping dev server

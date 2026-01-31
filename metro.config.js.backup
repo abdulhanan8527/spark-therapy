@@ -1,0 +1,5 @@
+const { getDefaultConfig, mergeConfig } = require('@expo/metro-config');
+
+const config = {};
+
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);

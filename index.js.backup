@@ -1,0 +1,65 @@
+// Conditionally import react-native-gesture-handler for web compatibility
+// This ensures that the import only happens in native environments
+// For web environments, we'll skip this import since it causes issues
+
+// Detect if we're running in a web environment
+const isWebEnvironment = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+if (!isWebEnvironment) {
+  // Native environment - import react-native-gesture-handler
+  try {
+    require('react-native-gesture-handler');
+  } catch (error) {
+    console.warn('react-native-gesture-handler could not be imported:', error.message);
+  }
+}
+
+// Minimal index.js for Expo app
+import { registerRootComponent } from 'expo';
+import App from './src/App';
+
+// Register the root component
+registerRootComponent(App);
+
+// Global error handling for uncaught errors
+if (typeof window !== 'undefined') {
+  // Web-specific error handling
+  window.addEventListener('error', (event) => {
+    console.error('Global error caught:', event.error);
+    // Attempt to show a user-friendly error message
+    if (document.body) {
+      const errorDiv = document.createElement('div');
+      errorDiv.style.position = 'fixed';
+      errorDiv.style.top = '0';
+      errorDiv.style.left = '0';
+      errorDiv.style.width = '100%';
+      errorDiv.style.height = '100%';
+      errorDiv.style.backgroundColor = '#ffffff';
+      errorDiv.style.zIndex = '9999';
+      errorDiv.style.display = 'flex';
+      errorDiv.style.flexDirection = 'column';
+      errorDiv.style.justifyContent = 'center';
+      errorDiv.style.alignItems = 'center';
+      errorDiv.style.fontFamily = 'Arial, sans-serif';
+      errorDiv.style.padding = '20px';
+      
+      errorDiv.innerHTML = `
+        <div style="max-width: 600px; text-align: center;">
+          <h1 style="color: #d32f2f;">Application Error</h1>
+          <p>An unexpected error has occurred that prevented the application from loading.</p>
+          <p style="font-size: 14px; color: #666; margin: 20px 0;"><strong>Error:</strong> \${event.error ? event.error.toString() : 'Unknown error'}</p>
+          <button onclick="location.reload()" style="background-color: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            Reload Application
+          </button>
+          <p style="margin-top: 20px; font-size: 12px; color: #999;">Please contact support if the problem persists.</p>
+        </div>
+      `;
+      
+      document.body.appendChild(errorDiv);
+    }
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+  });
+}
