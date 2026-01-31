@@ -4,21 +4,23 @@
     "slug": "spark-therapy",
     "version": "1.0.0",
     "platforms": [
-      "ios", 
-      "android", 
+      "ios",
+      "android",
       "web"
     ],
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.sparktherapy"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "package": "com.anonymous.sparktherapy"
     },
     "web": {
       "favicon": "./assets/favicon.png"
