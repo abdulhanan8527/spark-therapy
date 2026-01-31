@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-optional-chaining": "^7.28.6",
     "@babel/preset-env": "^7.25.3",
     "@babel/runtime": "^7.25.0",
     "@expo/metro-config": "^54.0.14",
