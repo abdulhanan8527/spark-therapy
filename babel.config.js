@@ -3,7 +3,7 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // Removed problematic plugins for Expo Go compatibility
+      "@babel/plugin-transform-optional-chaining",
     ],
   };
 };
