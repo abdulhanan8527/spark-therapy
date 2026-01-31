@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import NavigationService from '../utils/NavigationService';
 
@@ -15,7 +15,7 @@ import TherapistNavigator from './TherapistNavigator';
 import AdminNavigator from './AdminNavigator';
 
 // Create navigators
-const RootStack = createStackNavigator();
+const RootStack = createNativeStackNavigator();
 
 // Auth Stack Navigator
 const AuthStack = () => {

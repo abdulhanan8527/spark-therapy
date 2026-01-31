@@ -1,6 +1,6 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createStackNavigator } from '@react-navigation/stack';
+// Stack navigator import removed - not used in this file
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,7 +21,7 @@ import BroadcastNotificationsScreen from '../screens/admin/BroadcastNotification
 import InvoiceManagementScreen from '../screens/admin/InvoiceManagementScreen';
 
 const Drawer = createDrawerNavigator();
-const Stack = createStackNavigator();
+// Stack navigator removed - not used in this file
 
 // Admin Drawer Content Component
 const AdminDrawerContent = () => {

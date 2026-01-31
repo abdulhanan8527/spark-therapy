@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+// Stack navigator import removed - not used in this file
 import { Home, MessageCircle, Play, FileText, Calendar, Bell, DollarSign } from '../components/SimpleIcons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,18 +18,9 @@ import NotificationsScreen from '../screens/parent/NotificationsScreen';
 import InvoicesScreen from '../screens/parent/InvoicesScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+// Stack navigator removed - not used in this file
 
-// Create a stack navigator for screens that don't fit in bottom tabs
-const MoreStack = () => {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Complaints" component={ComplaintsScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="VideoUpload" component={VideoUploadScreen} />
-    </Stack.Navigator>
-  );
-};
+// MoreStack component removed - not used in current navigation structure
 
 const ParentTabs = () => {
   const { user } = useAuth();
