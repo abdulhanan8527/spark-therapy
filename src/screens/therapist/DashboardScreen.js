@@ -33,19 +33,25 @@ const TherapistDashboardScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const [childrenRes, scheduleRes, notificationsRes] = await Promise.all([
-        childAPI.getChildren().catch(err => ({ success: false, data: [], error: err })),
-        scheduleAPI.getSchedulesByTherapistId(user._id).catch(err => ({ success: false, data: [], error: err })),
-        notificationAPI.getNotifications().catch(err => ({ success: false, data: [], error: err }))
+        childAPI.getChildren().catch(() => ({ success: false, data: [] })),
+        scheduleAPI.getSchedulesByTherapistId(user._id).catch(() => ({ success: false, data: [] })),
+        notificationAPI.getNotifications().catch(() => ({ success: false, data: [] }))
       ]);
 
+      const childrenData = Array.isArray(childrenRes?.data) ? childrenRes.data : [];
+      const scheduleData = Array.isArray(scheduleRes?.data) ? scheduleRes.data : [];
+      const notificationsData = Array.isArray(notificationsRes?.data) ? notificationsRes.data : [];
+
       setStats({
-        assignedChildren: childrenRes.success ? childrenRes.data.length : 0,
-        todaySessions: scheduleRes.success ? scheduleRes.data.length : 0,
-        pendingNotes: scheduleRes.success ? scheduleRes.data.filter(s => !s.sessionNotes).length : 0,
-        unreadNotifications: notificationsRes.success ? notificationsRes.data.filter(n => !n.read).length : 0
+        assignedChildren: childrenData.length,
+        todaySessions: scheduleData.length,
+        pendingNotes: scheduleData.filter(s => s && !s.sessionNotes).length,
+        unreadNotifications: notificationsData.filter(n => n && !n.isRead && n.read !== true).length
       });
     } catch (error) {
-      console.error('Therapist dashboard fetch error:', error?.message || error);
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('Therapist dashboard fetch error:', error?.message);
+      }
       Alert.alert('Error', error?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);

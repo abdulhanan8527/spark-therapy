@@ -15,7 +15,7 @@ const createInvoice = async (req, res) => {
     }
 
     const invoice = await invoiceService.createInvoice(req.body);
-    successResponse(res, 'Invoice created successfully', invoice, 201);
+    successResponse(res, invoice, 'Invoice created successfully', 201);
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -37,7 +37,7 @@ const getAllInvoices = async (req, res) => {
     const options = { page, limit, sortBy, sortOrder };
     
     const result = await invoiceService.getAllInvoices(filters, options);
-    successResponse(res, 'Invoices retrieved successfully', result);
+    successResponse(res, result, 'Invoices retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -58,13 +58,13 @@ const getInvoiceById = async (req, res) => {
       if (invoice.parentId.toString() !== req.user._id.toString()) {
         return errorResponse(res, 'Access denied. Invoice does not belong to you.', 403);
       }
-      return successResponse(res, 'Invoice retrieved successfully', invoice);
+      return successResponse(res, invoice, 'Invoice retrieved successfully');
     }
     
     // Admins can view any invoice
     if (req.user.role === 'admin') {
       const invoice = await invoiceService.getInvoiceById(id);
-      return successResponse(res, 'Invoice retrieved successfully', invoice);
+      return successResponse(res, invoice, 'Invoice retrieved successfully');
     }
     
     return errorResponse(res, 'Access denied.', 403);
@@ -87,7 +87,7 @@ const updateInvoice = async (req, res) => {
 
     const { id } = req.params;
     const invoice = await invoiceService.updateInvoice(id, req.body);
-    successResponse(res, 'Invoice updated successfully', invoice);
+    successResponse(res, invoice, 'Invoice updated successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -107,7 +107,7 @@ const deleteInvoice = async (req, res) => {
 
     const { id } = req.params;
     const result = await invoiceService.deleteInvoice(id);
-    successResponse(res, 'Invoice deleted successfully', result);
+    successResponse(res, result, 'Invoice deleted successfully');
   } catch (error) {
     errorResponse(res, error.message, 404);
   }
@@ -129,7 +129,7 @@ const getInvoicesByParentId = async (req, res) => {
     
     // Admins can view any parent's invoices
     const invoices = await invoiceService.getInvoicesByParentId(parentId);
-    successResponse(res, 'Parent invoices retrieved successfully', invoices);
+    successResponse(res, invoices || [], 'Parent invoices retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -149,7 +149,7 @@ const getInvoicesByChildId = async (req, res) => {
 
     const { childId } = req.params;
     const invoices = await invoiceService.getInvoicesByChildId(childId);
-    successResponse(res, 'Child invoices retrieved successfully', invoices);
+    successResponse(res, invoices || [], 'Child invoices retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }

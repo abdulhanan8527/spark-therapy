@@ -22,7 +22,7 @@ const createSchedule = async (req, res) => {
     }
 
     const schedule = await scheduleService.createSchedule(req.body);
-    successResponse(res, 'Schedule created successfully', schedule, 201);
+    successResponse(res, schedule, 'Schedule created successfully', 201);
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -44,7 +44,7 @@ const getAllSchedules = async (req, res) => {
     const options = { page, limit, sortBy, sortOrder };
     
     const result = await scheduleService.getAllSchedules(filters, options);
-    successResponse(res, 'Schedules retrieved successfully', result);
+    successResponse(res, result, 'Schedules retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -64,7 +64,7 @@ const getScheduleById = async (req, res) => {
 
     const { id } = req.params;
     const schedule = await scheduleService.getScheduleById(id);
-    successResponse(res, 'Schedule retrieved successfully', schedule);
+    successResponse(res, schedule, 'Schedule retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 404);
   }
@@ -93,7 +93,7 @@ const updateSchedule = async (req, res) => {
     }
 
     const schedule = await scheduleService.updateSchedule(id, req.body);
-    successResponse(res, 'Schedule updated successfully', schedule);
+    successResponse(res, schedule, 'Schedule updated successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -113,7 +113,7 @@ const deleteSchedule = async (req, res) => {
 
     const { id } = req.params;
     const result = await scheduleService.deleteSchedule(id);
-    successResponse(res, 'Schedule deleted successfully', result);
+    successResponse(res, result, 'Schedule deleted successfully');
   } catch (error) {
     errorResponse(res, error.message, 404);
   }
@@ -142,7 +142,7 @@ const getSchedulesByTherapistId = async (req, res) => {
     const options = { startDate, endDate };
     
     const schedules = await scheduleService.getSchedulesByTherapistId(therapistId, options);
-    successResponse(res, 'Therapist schedules retrieved successfully', schedules);
+    successResponse(res, Array.isArray(schedules) ? schedules : [], 'Therapist schedules retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -165,7 +165,7 @@ const getSchedulesByChildId = async (req, res) => {
     const options = { startDate, endDate };
     
     const schedules = await scheduleService.getSchedulesByChildId(childId, options);
-    successResponse(res, 'Child schedules retrieved successfully', schedules);
+    successResponse(res, Array.isArray(schedules) ? schedules : [], 'Child schedules retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }

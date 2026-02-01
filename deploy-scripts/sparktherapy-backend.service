@@ -1,0 +1,17 @@
+[Unit]
+Description=SPARKTherapy Backend Server
+After=mongodb.service
+Requires=mongodb.service
+
+[Service]
+Type=simple
+User=abdul-hanan
+WorkingDirectory=/home/abdul-hanan/Downloads/New/SPARKTherapy/backend
+ExecStart=/usr/bin/node start-server.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=MONGODB_URI=mongodb://127.0.0.1:27017/spark_therapy
+
+[Install]
+WantedBy=multi-user.target

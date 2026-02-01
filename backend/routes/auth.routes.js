@@ -1,5 +1,5 @@
 const express = require('express');
-const { registerUser, loginUser, logoutUser, refreshAccessToken } = require('../controllers/auth.controller');
+const { registerUser, loginUser, logoutUser, refreshAccessToken, getUserProfile, updateUserProfile } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { createValidator } = require('../middleware/validation.middleware');
 const { userSchemas } = require('../helpers/validation');
@@ -16,5 +16,7 @@ router.get('/me', protect, (req, res) => {
         data: req.user
     });
 });
+router.get('/profile', protect, getUserProfile);
+router.put('/profile', protect, createValidator(userSchemas.updateProfile), updateUserProfile);
 
 module.exports = router;

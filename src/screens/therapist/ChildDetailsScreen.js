@@ -37,8 +37,8 @@ const ChildDetailsScreen = () => {
             // Get programs for this child
             let programs = [];
             try {
-              const programResponse = await programAPI.getProgramsByChild(child._id);
-              if (programResponse.success) {
+              const programResponse = await programAPI.getProgramsByChild(child._id).catch(() => ({ success: false, data: [] }));
+              if (programResponse?.success && Array.isArray(programResponse?.data)) {
                 const rawPrograms = programResponse.data || [];
                 
                 // Process programs to calculate progress and mastery from targets

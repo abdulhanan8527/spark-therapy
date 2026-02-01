@@ -1,6 +1,5 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-// Stack navigator import removed - not used in this file
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,13 +19,12 @@ import BroadcastNotificationsScreen from '../screens/admin/BroadcastNotification
 
 import InvoiceManagementScreen from '../screens/admin/InvoiceManagementScreen';
 
-const Drawer = createDrawerNavigator();
-// Stack navigator removed - not used in this file
+const Tab = createBottomTabNavigator();
 
-// Admin Drawer Content Component
-const AdminDrawerContent = () => {
+// Admin Tab Navigator Component
+const AdminTabNavigator = () => {
   return (
-    <Drawer.Navigator
+    <Tab.Navigator
       screenOptions={{
         headerShown: true,
         headerStyle: {
@@ -36,49 +34,53 @@ const AdminDrawerContent = () => {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
-        drawerActiveBackgroundColor: '#FF9500',
-        drawerActiveTintColor: '#fff',
-        drawerInactiveTintColor: '#333',
+        tabBarActiveTintColor: '#FF9500',
+        tabBarInactiveTintColor: '#666',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e0e0e0',
+        },
       }}
     >
-      <Drawer.Screen
+      <Tab.Screen
         name="Dashboard"
         component={AdminDashboard}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Therapists"
         component={TherapistManagementScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Children"
         component={ChildManagementScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="ChildrenSection"
         component={ChildrenSection}
         options={{
-          drawerLabel: 'Children Management',
+          tabBarLabel: 'Children Mgmt',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="FeedbackSection"
         component={FeedbackSection}
         options={{
@@ -88,64 +90,64 @@ const AdminDrawerContent = () => {
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Scheduling"
         component={SchedulingScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Complaints"
         component={ComplaintsScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="alert-triangle-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="FeeManagement"
         component={FeeManagementScreen}
         options={{
-          drawerLabel: 'Fee Management',
+          tabBarLabel: 'Fee Management',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="cash-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Deactivation"
         component={TherapistDeactivationScreen}
         options={{
-          drawerLabel: 'Deactivation',
+          tabBarLabel: 'Deactivation',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="person-remove-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="LeaveRequests"
         component={LeaveRequestsScreen}
         options={{
-          drawerLabel: 'Leave Requests',
+          tabBarLabel: 'Leave Requests',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Broadcast"
         component={BroadcastNotificationsScreen}
         options={{
@@ -155,18 +157,18 @@ const AdminDrawerContent = () => {
           ),
         }}
       />
-      <Drawer.Screen
+      <Tab.Screen
         name="Invoices"
         component={InvoiceManagementScreen}
         options={{
-          drawerLabel: 'Invoice Management',
+          tabBarLabel: 'Invoices',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
       />
-    </Drawer.Navigator>
+    </Tab.Navigator>
   );
 };
 
-export default AdminDrawerContent;
+export default AdminTabNavigator;

@@ -34,14 +34,19 @@ const IEPGoalsScreen = ({ navigation }) => {
   };
 
   const loadPrograms = async (childId) => {
+    if (!childId || typeof childId !== 'string' || childId.length !== 24) {
+      setPrograms([]);
+      return;
+    }
     try {
       setLoading(true);
-      const response = await programAPI.getProgramsByChild(childId);
-      if (response.success) {
-        setPrograms(response.data);
-      }
+      const response = await programAPI.getProgramsByChild(childId).catch(() => ({ success: false, data: [] }));
+      setPrograms(Array.isArray(response?.data) ? response.data : []);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load programs');
+      setPrograms([]);
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('IEP loadPrograms error:', error?.message);
+      }
     } finally {
       setLoading(false);
     }

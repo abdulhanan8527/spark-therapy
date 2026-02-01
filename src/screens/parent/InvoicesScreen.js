@@ -5,7 +5,7 @@ import { getPDFComponents } from '../../utils/PdfUtils';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
-import { invoiceAPI, childAPI } from '../../services/api';
+import apiClient, { invoiceAPI, childAPI } from '../../services/api';
 
 const InvoicesScreen = () => {
   const { user } = useAuth();
@@ -20,10 +20,11 @@ const InvoicesScreen = () => {
   const [pdfComponents, setPdfComponents] = useState({ Pdf: null, RNFetchBlob: null });
 
   useEffect(() => {
-    fetchInitialData();
-    // Load PDF components based on platform
+    if (user?._id) {
+      fetchInitialData();
+    }
     loadPDFComponents();
-  }, []);
+  }, [user]);
 
   const loadPDFComponents = () => {
     const components = getPDFComponents();
@@ -31,26 +32,22 @@ const InvoicesScreen = () => {
   };
 
   const fetchInitialData = async () => {
+    if (!user?._id) return;
     try {
       setLoading(true);
-      // Fetch children first
-      const childrenRes = await childAPI.getChildren();
-      if (childrenRes.success) {
-        setChildren(childrenRes.data);
-      }
+      const childrenRes = await childAPI.getChildren().catch(() => ({ success: false, data: [] }));
+      const invoicesRes = await invoiceAPI.getInvoicesByParentId(user._id).catch(() => ({ success: false, data: [] }));
 
-      // Fetch all invoices for parent
-      const invoicesRes = await invoiceAPI.getInvoicesByParentId(user.id);
-      if (invoicesRes.success) {
-        // Ensure invoices is always an array
-        const invoicesData = invoicesRes.data || [];
-        // Make sure invoicesData is an array
-        const invoicesArray = Array.isArray(invoicesData) ? invoicesData : [];
-        setInvoices(invoicesArray);
-      }
+      const childrenData = Array.isArray(childrenRes?.data) ? childrenRes.data : [];
+      setChildren(childrenData);
+
+      const invoicesData = Array.isArray(invoicesRes?.data) ? invoicesRes.data : (invoicesRes?.data?.data ? invoicesRes.data.data : []);
+      setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      Alert.alert('Error', 'Failed to fetch invoices. Please try again later.');
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('Invoices fetch error:', error?.message);
+      }
+      Alert.alert('Error', error?.message || 'Failed to load invoices. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -103,7 +100,8 @@ const InvoicesScreen = () => {
           
           // Construct the download URL using the API endpoint
           const token = await AsyncStorage.getItem('userToken');
-          const downloadUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf?token=${token}`;
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const downloadUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
           
           // Open the PDF in a new tab for download
           window.open(downloadUrl, '_blank');
@@ -179,7 +177,8 @@ const InvoicesScreen = () => {
           
           // Construct the PDF URL using the API endpoint
           const token = await AsyncStorage.getItem('userToken');
-          const pdfUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf?token=${token}`;
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const pdfUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
           
           // Open the PDF in a new tab for viewing
           window.open(pdfUrl, '_blank');
@@ -200,7 +199,8 @@ const InvoicesScreen = () => {
         }
         
         // Set the PDF URL using the API endpoint
-        const pdfUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf`;
+        const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+        const pdfUrl = `${baseUrl}/invoices/${invoiceId}/pdf`;
         
         // Add auth token to the URL
         const token = await AsyncStorage.getItem('userToken');

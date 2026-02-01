@@ -7,14 +7,12 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, error, setError } = useAuth();
+  const { login, clearError } = useAuth();
 
   // Clear any previous errors when screen mounts
   useEffect(() => {
-    if (error) {
-      setError(null);
-    }
-  }, []);
+    clearError?.();
+  }, [clearError]);
 
   const handleLogin = async () => {
     if (!email || !password) {

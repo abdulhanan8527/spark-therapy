@@ -39,7 +39,7 @@ const loadPdfModules = () => {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
-import { invoiceAPI, childAPI } from '../../services/api';
+import apiClient, { invoiceAPI, childAPI } from '../../services/api';
 
 const InvoiceManagementScreen = () => {
   const { user } = useAuth();
@@ -157,7 +157,8 @@ const InvoiceManagementScreen = () => {
         try {
           // Construct the PDF URL using the API endpoint
           const token = await AsyncStorage.getItem('userToken');
-          const pdfUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf?token=${token}`;
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const pdfUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
           
           // Open the PDF in a new tab for viewing
           window.open(pdfUrl, '_blank');
@@ -170,7 +171,8 @@ const InvoiceManagementScreen = () => {
       } else {
         // Native platforms - use modal
         // Set the PDF URL using the API endpoint
-        const pdfUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf`;
+        const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+        const pdfUrl = `${baseUrl}/invoices/${invoiceId}/pdf`;
         
         // Add auth token to the URL
         const token = await AsyncStorage.getItem('userToken');
@@ -195,7 +197,8 @@ const InvoiceManagementScreen = () => {
           
           // Construct the download URL using the API endpoint
           const token = await AsyncStorage.getItem('userToken');
-          const downloadUrl = `${invoiceAPI.defaults.baseURL}/invoices/${invoiceId}/pdf?token=${token}`;
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const downloadUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
           
           // Open the PDF in a new tab for download
           window.open(downloadUrl, '_blank');

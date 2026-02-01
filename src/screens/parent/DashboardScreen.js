@@ -32,18 +32,24 @@ const ParentDashboardScreen = ({ navigation }) => {
     if (!user?._id) return;
     try {
       setLoading(true);
-      const [childrenRes, invoicesRes, scheduleRes, notificationsRes] = await Promise.all([
+      // Only fetch data that the parent role is authorized to access
+      const [childrenRes, invoicesRes, notificationsRes] = await Promise.all([
         childAPI.getChildren().catch(err => ({ success: false, data: [], error: err })),
         invoiceAPI.getInvoicesByParentId(user._id).catch(err => ({ success: false, data: [], error: err })),
-        scheduleAPI.getAllSchedules().catch(err => ({ success: false, data: [], error: err })),
         notificationAPI.getNotifications().catch(err => ({ success: false, data: [], error: err }))
+        // Removed scheduleAPI.getAllSchedules() as it requires admin permissions
       ]);
 
+      // Safely handle API responses - support both { data: [] } and { data: { data: [] } } formats
+      const invoicesData = Array.isArray(invoicesRes?.data) ? invoicesRes.data : (invoicesRes?.data?.data && Array.isArray(invoicesRes.data.data) ? invoicesRes.data.data : []);
+      const notificationsData = Array.isArray(notificationsRes?.data) ? notificationsRes.data : (notificationsRes?.data?.data && Array.isArray(notificationsRes.data.data) ? notificationsRes.data.data : []);
+      const childrenData = Array.isArray(childrenRes?.data) ? childrenRes.data : (childrenRes?.data?.data && Array.isArray(childrenRes.data.data) ? childrenRes.data.data : []);
+
       setStats({
-        childrenCount: childrenRes.success ? childrenRes.data.length : 0,
-        pendingInvoices: invoicesRes.success ? invoicesRes.data.filter(inv => inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'overdue').length : 0,
-        upcomingSessions: scheduleRes.success ? scheduleRes.data.length : 0,
-        unreadNotifications: notificationsRes.success ? notificationsRes.data.filter(n => !n.read).length : 0
+        childrenCount: Array.isArray(childrenData) ? childrenData.length : 0,
+        pendingInvoices: Array.isArray(invoicesData) ? invoicesData.filter(inv => inv && inv.status && (String(inv.status).toLowerCase() === 'pending' || String(inv.status).toLowerCase() === 'overdue')).length : 0,
+        upcomingSessions: 0, // Parents don't have access to schedules API
+        unreadNotifications: Array.isArray(notificationsData) ? notificationsData.filter(n => n && (n.isRead === false || n.read === false)).length : 0
       });
     } catch (error) {
       console.error('Dashboard fetch error:', error?.message || error);
@@ -101,28 +107,56 @@ const ParentDashboardScreen = ({ navigation }) => {
             value={stats.childrenCount}
             icon={Users}
             color="#007AFF"
-            onPress={() => navigation.navigate('Attendance')}
+            onPress={() => {
+              try {
+                navigation.navigate('Schedule');
+              } catch (error) {
+                console.warn('Navigation to Schedule failed:', error);
+                Alert.alert('Feature not available', 'Schedule/Attendance tracking is not available in your current view.');
+              }
+            }}
           />
           <StatCard
             title="Upcoming Sessions"
             value={stats.upcomingSessions}
             icon={Calendar}
             color="#34C759"
-            onPress={() => navigation.navigate('Attendance')}
+            onPress={() => {
+              try {
+                navigation.navigate('Schedule');
+              } catch (error) {
+                console.warn('Navigation to Schedule failed:', error);
+                Alert.alert('Feature not available', 'Schedule/Attendance tracking is not available in your current view.');
+              }
+            }}
           />
           <StatCard
             title="Pending Invoices"
             value={stats.pendingInvoices}
             icon={DollarSign}
             color="#FF9500"
-            onPress={() => navigation.navigate('Invoices')}
+            onPress={() => {
+              try {
+                navigation.navigate('Invoices');
+              } catch (error) {
+                console.warn('Navigation to Invoices failed:', error);
+                Alert.alert('Feature not available', 'Invoices are not available in your current view.');
+              }
+            }}
           />
           <StatCard
             title="Notifications"
             value={stats.unreadNotifications}
             icon={Bell}
             color="#FF3B30"
-            onPress={() => Alert.alert('Notifications', 'Loading your notifications...')}
+            onPress={() => {
+              try {
+                navigation.navigate('Notifications');
+              } catch (error) {
+                console.warn('Navigation to Notifications failed:', error);
+                Alert.alert('Feature not available', 'Notifications are not available in your current view.');
+              }
+            }}
           />
         </View>
 
@@ -131,14 +165,28 @@ const ParentDashboardScreen = ({ navigation }) => {
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => navigation.navigate('Attendance')}
+              onPress={() => {
+              try {
+                navigation.navigate('Schedule');
+              } catch (error) {
+                console.warn('Navigation to Schedule failed:', error);
+                Alert.alert('Feature not available', 'Schedule/Attendance tracking is not available in your current view.');
+              }
+            }}
             >
               <Calendar size={20} color="#fff" />
               <Text style={styles.actionButtonText}>Attendance</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#34C759' }]}
-              onPress={() => navigation.navigate('Invoices')}
+              onPress={() => {
+                try {
+                  navigation.navigate('Invoices');
+                } catch (error) {
+                  console.warn('Navigation to Invoices failed:', error);
+                  Alert.alert('Feature not available', 'Invoices are not available in your current view.');
+                }
+              }}
             >
               <DollarSign size={20} color="#fff" />
               <Text style={styles.actionButtonText}>Payments</Text>

@@ -208,11 +208,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const clearError = () => setError(null);
+
   const value = {
     user,
     isLoading,
     isAuthenticated,
     error,
+    clearError,
     login,
     register,
     logout,

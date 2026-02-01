@@ -35,16 +35,26 @@ export default function ProgramBuilderScreen({ route }) {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [newTarget, setNewTarget] = useState('');
 
-  // Load programs from backend on component mount
+  // Load programs from backend on component mount - only when childId is valid
   useEffect(() => {
-    loadPrograms();
+    if (childId && typeof childId === 'string' && childId.length === 24) {
+      loadPrograms();
+    } else {
+      setPrograms([]);
+      setLoading(false);
+    }
   }, [childId]);
 
   const loadPrograms = async () => {
+    if (!childId || typeof childId !== 'string' || childId.length !== 24) {
+      setPrograms([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const response = await programAPI.getProgramsByChild(childId);
-      if (response.success && response.data) {
+      const response = await programAPI.getProgramsByChild(childId).catch(() => ({ success: false, data: [] }));
+      if (response?.success && Array.isArray(response?.data)) {
         // Map backend response to match frontend expectations
         const mappedPrograms = response.data.map(program => ({
           id: program._id || program.id,

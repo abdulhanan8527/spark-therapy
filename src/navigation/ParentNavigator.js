@@ -1,8 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-// Stack navigator import removed - not used in this file
-import { Home, MessageCircle, Play, FileText, Calendar, Bell, DollarSign } from '../components/SimpleIcons';
-import { useAuth } from '../contexts/AuthContext';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Home, MessageCircle, Play, FileText, Calendar } from '../components/SimpleIcons';
 
 // Parent Screens
 import ParentDashboardScreen from '../screens/parent/DashboardScreen';
@@ -18,12 +17,9 @@ import NotificationsScreen from '../screens/parent/NotificationsScreen';
 import InvoicesScreen from '../screens/parent/InvoicesScreen';
 
 const Tab = createBottomTabNavigator();
-// Stack navigator removed - not used in this file
-
-// MoreStack component removed - not used in current navigation structure
+const Stack = createNativeStackNavigator();
 
 const ParentTabs = () => {
-  const { user } = useAuth();
 
   return (
     <Tab.Navigator
@@ -95,4 +91,45 @@ const ParentTabs = () => {
   );
 };
 
-export default ParentTabs;
+const ParentNavigator = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="ParentTabs"
+    >
+      <Stack.Screen name="ParentTabs" component={ParentTabs} />
+      <Stack.Screen
+        name="Invoices"
+        component={InvoicesScreen}
+        options={{ headerShown: true, title: 'Invoices', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="Complaints"
+        component={ComplaintsScreen}
+        options={{ headerShown: true, title: 'Complaints', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="Fees"
+        component={FeesScreen}
+        options={{ headerShown: true, title: 'Fees', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ headerShown: true, title: 'Notifications', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="VideoUpload"
+        component={VideoUploadScreen}
+        options={{ headerShown: true, title: 'Upload Video', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="IEPGoals"
+        component={IEPGoalsScreen}
+        options={{ headerShown: true, title: 'IEP Goals', headerBackTitle: 'Back' }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export default ParentNavigator;

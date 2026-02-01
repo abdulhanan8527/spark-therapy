@@ -11,8 +11,8 @@ const ENV = getEnvVars();
 // Create axios instance with base URL
 const apiClient = axios.create({
   baseURL: ENV.API_BASE_URL,
-  // Add timeout to prevent hanging requests
-  timeout: 10000,
+  // Adjust timeout based on environment
+  timeout: ENV.REQUEST_TIMEOUT || 15000,
   // Add headers for web compatibility
   headers: {
     'Content-Type': 'application/json',
@@ -49,19 +49,20 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper to handle API errors
+// Helper to handle API errors - returns user-friendly messages
 const handleApiError = (error, fallbackMessage) => {
-  console.error(`API Error (${fallbackMessage}):`, error);
+  // Log technical details in development only
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.warn(`API Error (${fallbackMessage}):`, error?.message || error);
+  }
 
   let message = fallbackMessage;
   let data = null;
 
-  if (error.response) {
-    // The server responded with a status code (e.g., 400, 401, 500)
+  if (error?.response) {
     data = error.response.data;
-    message = data?.message || fallbackMessage;
-    
-    // Handle specific status codes with more descriptive messages
+    const serverMessage = data?.message;
+
     if (error.response.status === 401) {
       const errorCode = data?.code;
       if (errorCode === 'TOKEN_EXPIRED') {
@@ -73,54 +74,43 @@ const handleApiError = (error, fallbackMessage) => {
       } else if (errorCode === 'ACCOUNT_DEACTIVATED') {
         message = 'Your account has been deactivated. Please contact support.';
       } else {
-        message = 'Unauthorized access. Please log in again.';
+        message = 'Session expired. Please log in again.';
       }
-      
-      // Clear authentication data for 401 errors
       storage.removeItem('userToken');
       storage.removeItem('userData');
-    } else if (error.response.status >= 500) {
-      message = 'Server error. Please contact support if this persists.';
+    } else if (error.response.status === 403) {
+      message = serverMessage || 'You do not have permission to perform this action.';
     } else if (error.response.status === 404) {
-      message = 'Requested resource not found.';
+      message = serverMessage || 'The requested resource was not found.';
+    } else if (error.response.status >= 500) {
+      message = 'Server is temporarily unavailable. Please try again later.';
+    } else if (serverMessage) {
+      message = serverMessage;
     }
-  } else if (error.request) {
-    // The request was made but no response was received (Network Error)
-    message = `Cannot connect to server at ${ENV.API_BASE_URL}. 
-
-Please check:
-- Is the backend server running on port ${ENV.API_BASE_URL.split(':')[2] || '5001'}?
-- Are you using the correct IP address?
-- For web browser, use localhost
-- For Expo Go, use localhost`;
-  } else {
-    // Something happened during request setup
-    message = error.message || fallbackMessage;
+  } else if (error?.request) {
+    message = 'Unable to connect. Please check your internet connection and ensure the server is running.';
+  } else if (error?.message) {
+    message = error.message;
   }
 
-  // Throw a proper Error object so catch blocks can reliably use .message
   const apiError = new Error(message);
-  apiError.data = data; // Keep raw data in case we need it
-  apiError.statusCode = error.response?.status;
-  apiError.isAuthError = error.response?.status === 401;
+  apiError.data = data;
+  apiError.statusCode = error?.response?.status;
+  apiError.isAuthError = error?.response?.status === 401;
   throw apiError;
 };
 
 // Helper function to check if the server is reachable
 export const checkServerConnectivity = async () => {
   try {
-    // Make a simple GET request to the server's health endpoint
-    const response = await apiClient.get('/health'); // Root health check
-    return { reachable: true, data: response.data };
+    // baseURL includes /api, so /health hits /api/health
+    const response = await apiClient.get('/health', { timeout: 5000 });
+    return { reachable: true, data: response?.data };
   } catch (error) {
-    // If root health check fails, try the API health endpoint
-    try {
-      const response = await apiClient.get('/api/health');
-      return { reachable: true, data: response.data };
-    } catch (apiError) {
-      console.warn('Server connectivity check failed:', error.message, apiError.message);
-      return { reachable: false, error: error };
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn('Server connectivity check failed:', error?.message);
     }
+    return { reachable: false, error };
   }
 };
 

@@ -1,17 +1,17 @@
 const Notification = require('../models/Notification');
-const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 class NotificationService {
-  // Get notifications for a user
+  // Get notifications for a user - returns { success, data, message } for controller to use
   static async getNotificationsByUser(userId) {
     try {
-      const notifications = await Notification.find({ 
+      const notifications = await Notification.find({
         recipientId: userId,
-        expiresAt: { $gte: new Date() }
-      }).sort({ createdAt: -1 });
-      return successResponse(null, notifications, 'Notifications retrieved successfully');
+        $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gte: new Date() } }]
+      }).sort({ createdAt: -1 }).lean();
+      return { success: true, data: notifications || [], message: 'Notifications retrieved successfully' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      console.error('NotificationService getNotificationsByUser error:', error);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -20,11 +20,11 @@ class NotificationService {
     try {
       const notification = await Notification.findById(notificationId);
       if (!notification) {
-        return errorResponse(null, 'Notification not found', 404);
+        return { success: false, message: 'Notification not found', statusCode: 404 };
       }
-      return successResponse(null, notification, 'Notification retrieved successfully');
+      return { success: true, data: notification, message: 'Notification retrieved successfully' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -33,9 +33,9 @@ class NotificationService {
     try {
       const notification = new Notification(notificationData);
       const savedNotification = await notification.save();
-      return successResponse(null, savedNotification, 'Notification created successfully', 201);
+      return { success: true, data: savedNotification, message: 'Notification created successfully', statusCode: 201 };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -44,15 +44,15 @@ class NotificationService {
     try {
       const notification = await Notification.findById(notificationId);
       if (!notification) {
-        return errorResponse(null, 'Notification not found', 404);
+        return { success: false, message: 'Notification not found', statusCode: 404 };
       }
 
       notification.isRead = true;
       notification.readAt = new Date();
       const updatedNotification = await notification.save();
-      return successResponse(null, updatedNotification, 'Notification marked as read');
+      return { success: true, data: updatedNotification, message: 'Notification marked as read' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -63,9 +63,9 @@ class NotificationService {
         { recipientId: userId, isRead: false },
         { isRead: true, readAt: new Date() }
       );
-      return successResponse(null, { modifiedCount: result.modifiedCount }, 'All notifications marked as read');
+      return { success: true, data: { modifiedCount: result.modifiedCount }, message: 'All notifications marked as read' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -74,11 +74,11 @@ class NotificationService {
     try {
       const notification = await Notification.findByIdAndDelete(notificationId);
       if (!notification) {
-        return errorResponse(null, 'Notification not found', 404);
+        return { success: false, message: 'Notification not found', statusCode: 404 };
       }
-      return successResponse(null, {}, 'Notification deleted successfully');
+      return { success: true, data: {}, message: 'Notification deleted successfully' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -91,9 +91,9 @@ class NotificationService {
       }));
 
       const savedNotifications = await Notification.insertMany(notifications);
-      return successResponse(null, savedNotifications, 'Broadcast notifications created successfully', 201);
+      return { success: true, data: savedNotifications, message: 'Broadcast notifications created successfully', statusCode: 201 };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 
@@ -103,11 +103,11 @@ class NotificationService {
       const count = await Notification.countDocuments({
         recipientId: userId,
         isRead: false,
-        expiresAt: { $gte: new Date() }
+        $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gte: new Date() } }]
       });
-      return successResponse(null, { count }, 'Unread count retrieved successfully');
+      return { success: true, data: { count }, message: 'Unread count retrieved successfully' };
     } catch (error) {
-      return errorResponse(null, error.message, 500);
+      return { success: false, message: error.message, statusCode: 500 };
     }
   }
 }
