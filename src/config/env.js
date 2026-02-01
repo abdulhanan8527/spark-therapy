@@ -56,7 +56,7 @@ const ENV = {
     API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://staging-api.sparktherapy.com/api',
   },
   production: {
-    API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://sparktherapy-backend.onrender.com/api',
+    API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://spark-therapy.onrender.com/api',
     // Add timeout and retry configuration for production
     REQUEST_TIMEOUT: 30000,
     MAX_RETRIES: 3,
