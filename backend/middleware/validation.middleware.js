@@ -171,6 +171,11 @@ const createValidator = (schema, options = {}) => {
 const sanitizeInput = (input) => {
   if (input === null || input === undefined) return input;
   
+  // Handle Date objects specifically - don't sanitize them
+  if (input instanceof Date) {
+    return input;
+  }
+  
   if (typeof input === 'string') {
     return SANITIZATION_RULES.stripDangerousChars(input);
   }

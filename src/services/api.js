@@ -27,9 +27,23 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Log request details in development
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log(`=== API Request ===`);
+      console.log(`Method: ${config.method?.toUpperCase()}`);
+      console.log(`URL: ${config.baseURL}${config.url}`);
+      console.log(`Headers:`, config.headers);
+      console.log(`Data:`, config.data);
+      console.log(`==================`);
+    }
+    
     return config;
   },
   (error) => {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('Request interceptor error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -37,9 +51,24 @@ apiClient.interceptors.request.use(
 // Add a response interceptor to handle token expiration
 apiClient.interceptors.response.use(
   (response) => {
+    // Log successful response in development
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log(`=== API Response ===`);
+      console.log(`Status: ${response.status}`);
+      console.log(`Data:`, response.data);
+      console.log(`====================`);
+    }
     return response;
   },
   async (error) => {
+    // Log error response in development
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error(`=== API Response Error ===`);
+      console.error(`Status: ${error.response?.status}`);
+      console.error(`Data:`, error.response?.data);
+      console.error(`=========================`);
+    }
+    
     if (error.response?.status === 401) {
       // Token expired or invalid, clear storage and redirect to login
       await storage.removeItem('userToken');
@@ -51,9 +80,18 @@ apiClient.interceptors.response.use(
 
 // Helper to handle API errors - returns user-friendly messages
 const handleApiError = (error, fallbackMessage) => {
-  // Log technical details in development only
+  // Log detailed technical information in development
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    console.warn(`API Error (${fallbackMessage}):`, error?.message || error);
+    console.warn(`=== API Error Details ===`);
+    console.warn(`Fallback Message: ${fallbackMessage}`);
+    console.warn(`Error Object:`, error);
+    console.warn(`Error Message:`, error?.message);
+    console.warn(`Error Code:`, error?.code);
+    console.warn(`Response Status:`, error?.response?.status);
+    console.warn(`Response Data:`, error?.response?.data);
+    console.warn(`Request URL:`, error?.request?.responseURL);
+    console.warn(`Config:`, error?.config);
+    console.warn(`========================`);
   }
 
   let message = fallbackMessage;
@@ -268,9 +306,37 @@ export const childAPI = {
   // Create child
   createChild: async (childData) => {
     try {
-      const response = await apiClient.post('/children', childData);
+      // Validate and clean the child data before sending
+      const cleanData = {
+        firstName: childData.firstName?.trim() || '',
+        lastName: childData.lastName?.trim() || '',
+        diagnosis: childData.diagnosis?.trim() || '',
+        parentId: childData.parentId?.trim() || '',
+      };
+      
+      // Handle dateOfBirth carefully
+      if (childData.dateOfBirth && childData.dateOfBirth.trim() !== '') {
+        // Validate it's a proper date string
+        const dateStr = childData.dateOfBirth.trim();
+        // Check if it matches YYYY-MM-DD format
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateRegex.test(dateStr)) {
+          cleanData.dateOfBirth = dateStr;
+        } else {
+          throw new Error('Invalid date format. Please use YYYY-MM-DD format.');
+        }
+      }
+      
+      // Handle optional therapist
+      if (childData.therapistId && childData.therapistId.trim() !== '') {
+        cleanData.therapistId = childData.therapistId.trim();
+      }
+      
+      console.log('Sending clean child data to API:', cleanData);
+      const response = await apiClient.post('/children', cleanData);
       return response.data;
     } catch (error) {
+      console.error('Child creation API error:', error);
       handleApiError(error, 'Failed to create child');
     }
   },

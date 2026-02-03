@@ -65,6 +65,11 @@ const getChildById = async (req, res) => {
 // @access  Private (Parent, Admin)
 const createChild = async (req, res) => {
   try {
+    console.log('=== BACKEND: Child creation request received ===');
+    console.log('Request body:', req.body);
+    console.log('User role:', req.user.role);
+    console.log('User ID:', req.user._id);
+    
     // Only parents and admins can create children
     if (req.user.role !== 'parent' && req.user.role !== 'admin') {
       return errorResponse(res, 'Not authorized to create child', 403);
@@ -74,6 +79,8 @@ const createChild = async (req, res) => {
       ...req.body,
       parentId: req.user.role === 'parent' ? req.user._id : req.body.parentId
     };
+    
+    console.log('Processed child data:', childData);
 
     const result = await ChildService.createChild(childData);
     

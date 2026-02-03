@@ -65,6 +65,33 @@ class ChildService {
   // Create child
   static async createChild(childData) {
     try {
+      console.log('=== SERVICE: Creating child with data ===');
+      console.log('Original childData:', childData);
+      console.log('dateOfBirth type:', typeof childData.dateOfBirth);
+      console.log('dateOfBirth value:', childData.dateOfBirth);
+      
+      // Handle dateOfBirth conversion
+      if (childData.dateOfBirth) {
+        // Convert string date to Date object
+        if (typeof childData.dateOfBirth === 'string') {
+          console.log('Converting date string to Date object...');
+          const dateObj = new Date(childData.dateOfBirth);
+          console.log('Converted date object:', dateObj);
+          console.log('Is valid date:', !isNaN(dateObj.getTime()));
+          
+          if (!isNaN(dateObj.getTime())) {
+            childData.dateOfBirth = dateObj;
+            console.log('dateOfBirth updated to Date object:', childData.dateOfBirth);
+          } else {
+            // Invalid date string, remove it
+            console.log('Invalid date string, removing dateOfBirth field');
+            delete childData.dateOfBirth;
+          }
+        }
+      }
+      
+      console.log('Final childData being saved:', childData);
+      
       const child = new Child(childData);
       const savedChild = await child.save();
       return {

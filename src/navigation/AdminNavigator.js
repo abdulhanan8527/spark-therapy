@@ -104,7 +104,7 @@ const AdminTabNavigator = () => {
         component={ComplaintsScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-triangle-outline" size={size} color={color} />
+            <Ionicons name="alert-circle-outline" size={size} color={color} />
           ),
         }}
       />

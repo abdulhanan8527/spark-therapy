@@ -60,6 +60,8 @@ const SchedulingScreen = () => {
         return { success: false, data: [] };
       });
       
+      console.log('Children promise created');
+      
       const therapistsPromise = therapistAPI.getAllTherapists().catch(err => {
         console.error('Error fetching therapists:', err?.message || err);
         // Check if it's an authentication issue
@@ -71,6 +73,8 @@ const SchedulingScreen = () => {
         }
         return { success: false, data: [] };
       });
+      
+      console.log('Therapists promise created');
       
       const sessionsPromise = sessionAPI.getSessions().catch(err => {
         console.error('Error fetching sessions:', err?.message || err);
@@ -84,28 +88,52 @@ const SchedulingScreen = () => {
         return { success: false, data: [] };
       });
       
+      console.log('Waiting for all promises to resolve...');
       const [childrenRes, therapistsRes, sessionsRes] = await Promise.all([
         childrenPromise,
         therapistsPromise,
         sessionsPromise
       ]);
+      console.log('All promises resolved:', { childrenRes, therapistsRes, sessionsRes });
 
       // Safely set data ensuring arrays are used
+      console.log('Processing children result:', childrenRes);
       if (childrenRes.success) {
-        setChildrenList(Array.isArray(childrenRes.data) ? childrenRes.data : []);
+        const childrenData = Array.isArray(childrenRes.data) ? childrenRes.data : [];
+        console.log('Setting children list:', childrenData);
+        setChildrenList(childrenData);
       } else {
+        console.log('Children fetch failed, setting empty array');
         setChildrenList([]);
       }
       
+      console.log('Processing therapists result:', therapistsRes);
       if (therapistsRes.success) {
-        setTherapistsList(Array.isArray(therapistsRes.data) ? therapistsRes.data : []);
+        // Handle different response structures for therapists
+        let therapistList = [];
+        if (Array.isArray(therapistsRes.data)) {
+          therapistList = therapistsRes.data;
+        } else if (therapistsRes.data?.therapists && Array.isArray(therapistsRes.data.therapists)) {
+          therapistList = therapistsRes.data.therapists;
+        } else if (therapistsRes.data?.data && Array.isArray(therapistsRes.data.data)) {
+          therapistList = therapistsRes.data.data;
+        } else if (therapistsRes.data && typeof therapistsRes.data === 'object') {
+          therapistList = [therapistsRes.data];
+        }
+        console.log('Setting therapists list:', therapistList);
+        setTherapistsList(Array.isArray(therapistList) ? therapistList : []);
       } else {
+        console.log('Therapists fetch failed, setting empty array');
         setTherapistsList([]);
       }
       
+      console.log('Processing sessions result:', sessionsRes);
       if (sessionsRes.success) {
-        setSessions(Array.isArray(sessionsRes.data) ? sessionsRes.data : []);
+        const sessionsData = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
+        console.log('Setting sessions:', sessionsData);
+        setSessions(sessionsData);
       } else {
+        console.log('Sessions fetch failed, setting empty array');
         setSessions([]);
       }
       
@@ -126,6 +154,8 @@ const SchedulingScreen = () => {
 
   const handleAddSession = async () => {
     const { childId, therapistId, date, time, duration } = newSession;
+    
+    console.log('Scheduling session with data:', newSession);
     
     // Validate required fields
     if (!childId?.trim()) {
@@ -184,7 +214,7 @@ const SchedulingScreen = () => {
       const start = new Date(`${date}T${time}:00`);
       const end = new Date(start.getTime() + durationNum * 60000);
 
-      const res = await sessionAPI.createSession({
+      const sessionData = {
         childId,
         therapistId,
         parentId: childrenList.find(c => c._id === childId)?.parentId,
@@ -192,15 +222,53 @@ const SchedulingScreen = () => {
         endTime: end.toISOString(),
         duration: durationNum,
         status: 'scheduled'
-      });
+      };
+      
+      console.log('Creating session with data:', sessionData);
+      
+      const res = await sessionAPI.createSession(sessionData);
+      
+      console.log('Session creation response:', res);
 
       if (res.success) {
+        console.log('Session created successfully:', res.data);
         Alert.alert('Success', 'Session scheduled successfully!');
         setNewSession({ childId: '', therapistId: '', date: '', time: '', duration: '60' });
         setShowAddForm(false);
-        fetchInitialData();
+        console.log('Refreshing session data...');
+        
+        // Immediate UI update with the new session
+        if (res.data) {
+          setSessions(prevSessions => [...prevSessions, res.data]);
+        }
+        
+        // Aggressive refresh strategy to ensure backend sync
+        setTimeout(async () => {
+          console.log('First refresh attempt...');
+          await fetchInitialData();
+          console.log('First refresh complete');
+          
+          // Second refresh after a delay to ensure backend processing
+          setTimeout(async () => {
+            console.log('Second refresh attempt...');
+            await fetchInitialData();
+            console.log('Second refresh complete');
+            forceRefresh(); // Force component re-render
+          }, 1000);
+        }, 500);
+        
+      } else {
+        console.error('Session API returned failure:', res);
+        Alert.alert('Error', res.message || 'Failed to schedule session');
       }
     } catch (error) {
+      console.error('Error scheduling session - Full error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response,
+        request: error?.request,
+        config: error?.config
+      });
       Alert.alert('Error', error.message || 'Failed to schedule session');
     } finally {
       setSubmitting(false);
@@ -297,15 +365,30 @@ const SchedulingScreen = () => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  // Force refresh mechanism
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  const forceRefresh = () => {
+    console.log('Force refreshing component...');
+    setRefreshKey(prev => prev + 1);
+    fetchInitialData();
+  };
+  
   // Group sessions by date
+  console.log('Processing sessions data:', sessions);
   const groupedSessions = sessions.reduce((groups, session) => {
-    const date = new Date(session.startTime).toISOString().split('T')[0];
-    if (!groups[date]) {
-      groups[date] = [];
+    try {
+      const date = new Date(session.startTime).toISOString().split('T')[0];
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(session);
+    } catch (error) {
+      console.error('Error processing session:', session, error);
     }
-    groups[date].push(session);
     return groups;
   }, {});
+  console.log('Grouped sessions:', groupedSessions);
 
   if (loading) {
     return (
@@ -316,20 +399,29 @@ const SchedulingScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} key={`schedule-${refreshKey}`}>
       <Text style={styles.header}>Session Scheduling</Text>
 
       {/* Add Session Button */}
       <View style={styles.section}>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddForm(!showAddForm)}
-        >
-          <Ionicons name="add" width={20} height={20} color="#fff" />
-          <Text style={styles.addButtonText}>
-            {showAddForm ? 'Cancel' : 'Add Session'}
-          </Text>
-        </TouchableOpacity>
+        <View style={{flexDirection: 'row', gap: 10}}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddForm(!showAddForm)}
+          >
+            <Ionicons name="add" width={20} height={20} color="#fff" />
+            <Text style={styles.addButtonText}>
+              {showAddForm ? 'Cancel' : 'Add Session'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, {backgroundColor: '#34C759'}]}
+            onPress={forceRefresh}
+          >
+            <Ionicons name="refresh" width={20} height={20} color="#fff" />
+            <Text style={styles.addButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Add Session Form */}
@@ -434,9 +526,19 @@ const SchedulingScreen = () => {
                   <View style={styles.sessionHeader}>
                     <View style={styles.sessionInfo}>
                       <Text style={styles.sessionChild}>
-                        {session.childId?.firstName || 'Child Name'} {session.childId?.lastName || 'N/A'}
+                        {typeof session.childId === 'object' && session.childId?.firstName 
+                          ? `${session.childId.firstName} ${session.childId.lastName || ''}`
+                          : typeof session.childId === 'string' 
+                            ? `Child ID: ${session.childId.substring(0, 8)}...`
+                            : 'Unknown Child'}
                       </Text>
-                      <Text style={styles.sessionTherapist}>{session.therapistId?.name || 'Therapist Name'}</Text>
+                      <Text style={styles.sessionTherapist}>
+                        {typeof session.therapistId === 'object' && session.therapistId?.name 
+                          ? session.therapistId.name
+                          : typeof session.therapistId === 'string' 
+                            ? `Therapist ID: ${session.therapistId.substring(0, 8)}...`
+                            : 'Unknown Therapist'}
+                      </Text>
                     </View>
 
                     <View style={[styles.statusBadge, styles.scheduledStatus]}>

@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, A
 import { Card } from '../shared/Card';
 import { StatusBadge } from '../shared/StatusBadge';
 import { adminAPI } from '../../services/api';
-import { AlertTriangle, CheckCircle, DollarSign, Users, Baby, GraduationCap, FileText, TrendingUp, TrendingDown } from '../../components/SimpleIcons';
+import { AlertTriangle, CheckCircle, DollarSign, Users, Baby, GraduationCap, FileText, TrendingUp, TrendingDown, LogOut } from '../../components/SimpleIcons';
+import { useAuth } from '../../contexts/AuthContext';
+import NavigationService from '../../utils/NavigationService';
 
 // Define TypeScript interface for dashboard stats
 interface DashboardStats {
@@ -183,7 +185,16 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     textAlign: 'center',
   },
-  // Fee Summary & User Stats
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -375,10 +386,16 @@ const styles = StyleSheet.create({
 });
 
 export default function AdminDashboard() {
+  const { user, logout } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    NavigationService.resetToAuth();
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -410,8 +427,15 @@ export default function AdminDashboard() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Dashboard Overview</Text>
-          <Text style={styles.headerSubtitle}>Loading dashboard data...</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Dashboard Overview</Text>
+              <Text style={styles.headerSubtitle}>Loading dashboard data...</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <LogOut size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#4F46E5" />
@@ -425,8 +449,15 @@ export default function AdminDashboard() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Dashboard Overview</Text>
-          <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Dashboard Overview</Text>
+              <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <LogOut size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.errorContainer}>
           <AlertTriangle size={48} color="#EF4444" style={styles.errorIcon} />
@@ -444,8 +475,15 @@ export default function AdminDashboard() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Dashboard Overview</Text>
-          <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Dashboard Overview</Text>
+              <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <LogOut size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.warningContainer}>
           <AlertTriangle size={48} color="#F59E0B" style={styles.warningIcon} />
@@ -462,8 +500,15 @@ export default function AdminDashboard() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Dashboard Overview</Text>
-        <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>Dashboard Overview</Text>
+            <Text style={styles.headerSubtitle}>Welcome back, Admin</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <LogOut size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* KPI Cards */}
