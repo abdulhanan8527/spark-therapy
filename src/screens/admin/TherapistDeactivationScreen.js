@@ -16,11 +16,13 @@ const TherapistDeactivationScreen = () => {
     try {
       setLoading(true);
       const response = await therapistAPI.getAllTherapists();
-      if (response.success && Array.isArray(response.data)) {
+      console.log("Therapists loaded:", response.data);
+      if (response.success) {
+        console.log("Therapists loaded loop:", response.data);
         // Map the response data to match the expected format
-        const mappedTherapists = response.data.map(therapist => ({
+        const mappedTherapists = response.data.data.map(therapist => ({
           id: therapist._id,
-          name: `${therapist.firstName} ${therapist.lastName}`,
+          name: `${therapist.name}`,
           email: therapist.email,
           specialization: therapist.specialization || 'N/A',
           status: therapist.isActive ? 'active' : 'inactive',
@@ -28,6 +30,7 @@ const TherapistDeactivationScreen = () => {
           sessionsThisWeek: therapist.sessionCount || 0,
           startDate: therapist.createdAt ? new Date(therapist.createdAt).toISOString().split('T')[0] : 'N/A',
         }));
+        console.log("Therapists loaded loop new:", response.data);
         setTherapists(mappedTherapists);
       } else {
         setTherapists([]);

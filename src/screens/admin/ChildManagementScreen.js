@@ -31,11 +31,13 @@ const ChildManagementScreen = () => {
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       // Check if user is admin before fetching data
+      console.log("Checking if user is admin...")
       if (user?.role !== 'admin') {
         Alert.alert('Access Denied', 'You must be logged in as an admin to access this screen.');
         return;
       }
       // Fetch children first, then users
+      console.log("Fetching children and users for admin screen...")
       await fetchChildren();
       await fetchUsers();
     };
@@ -44,13 +46,15 @@ const ChildManagementScreen = () => {
   }, [user]);
 
   const fetchChildren = async () => {
+    console.log('Fetching children...');
     try {
       setLoading(true);
       const res = await childAPI.getChildren();
-
+      console.log('Children API response:', res);
       // Handle response based on its actual structure
       if (res && typeof res === 'object') {
         if (res.success === true) {
+          console.log('Children API response success:', res.data);
           // Standard response format
           setChildren(Array.isArray(res.data) ? res.data : []);
         } else if (Array.isArray(res)) {
@@ -247,6 +251,7 @@ const ChildManagementScreen = () => {
         </SafeAreaView>
       </Modal>
     );
+  }
   
   const handleAddChild = async () => {
     // Validate required fields
@@ -323,228 +328,119 @@ const ChildManagementScreen = () => {
     console.error('Error adding child:', error?.message || error);
     Alert.alert('Error', error?.message || 'Failed to add child');
   }
-};
+  };
 
-const isValidDate = (dateString) => {
-  if (!dateString) return false;
+  const isValidDate = (dateString) => {
+    if (!dateString) return false;
 
-  // Check if date is in YYYY-MM-DD format
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!regex.test(dateString)) {
-    return false;
-  }
+    // Check if date is in YYYY-MM-DD format
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) {
+      return false;
+    }
 
-  // Parse the date and check if it's valid
-  const date = new Date(dateString);
-  const timestamp = date.getTime();
+    // Parse the date and check if it's valid
+    const date = new Date(dateString);
+    const timestamp = date.getTime();
 
-  if (typeof timestamp !== 'number' || Number.isNaN(timestamp)) {
-    return false;
-  }
+    if (typeof timestamp !== 'number' || Number.isNaN(timestamp)) {
+      return false;
+    }
 
-  // Check if the date string matches the input (to avoid invalid dates like 2023-02-30)
-  // Also handle timezone offset differences
-  const isoString = date.toISOString().split('T')[0];
-  return isoString === dateString;
-};
+    // Check if the date string matches the input (to avoid invalid dates like 2023-02-30)
+    // Also handle timezone offset differences
+    const isoString = date.toISOString().split('T')[0];
+    return isoString === dateString;
+  };
 
-// Function to convert date string to ISO format for API
-const formatDateForAPI = (dateString) => {
-  if (!dateString) return null;
+  // Function to convert date string to ISO format for API
+  const formatDateForAPI = (dateString) => {
+    if (!dateString) return null;
 
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    return null;
-  }
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
 
-  // Return ISO string which is what the backend expects
-  return date.toISOString();
-};
+    // Return ISO string which is what the backend expects
+    return date.toISOString();
+  };
 
-// Function to format date input as user types
-const formatDateString = (input) => {
-  // Remove any non-digit characters
-  const cleanedInput = input.replace(/\D/g, '');
+  // Function to format date input as user types
+  const formatDateString = (input) => {
+    // Remove any non-digit characters
+    const cleanedInput = input.replace(/\D/g, '');
 
-  if (cleanedInput.length <= 4) {
-    return cleanedInput;
-  } else if (cleanedInput.length <= 6) {
-    return `${cleanedInput.slice(0, 4)}-${cleanedInput.slice(4)}`;
-  } else {
-    return `${cleanedInput.slice(0, 4)}-${cleanedInput.slice(4, 6)}-${cleanedInput.slice(6, 8)}`;
-  }
-};
+    if (cleanedInput.length <= 4) {
+      return cleanedInput;
+    } else if (cleanedInput.length <= 6) {
+      return `${cleanedInput.slice(0, 4)}-${cleanedInput.slice(4)}`;
+    } else {
+      return `${cleanedInput.slice(0, 4)}-${cleanedInput.slice(4, 6)}-${cleanedInput.slice(6, 8)}`;
+    }
+  };
 
-// Handler for date input changes
-const handleDateChange = (text, setFunction, field) => {
-  // Only allow digits and hyphens
-  const cleanText = text.replace(/[^\d-]/g, '');
+  // Handler for date input changes
+  const handleDateChange = (text, setFunction, field) => {
+    // Only allow digits and hyphens
+    const cleanText = text.replace(/[^\d-]/g, '');
 
-  // Format the date as user types
-  const formattedText = formatDateString(cleanText);
+    // Format the date as user types
+    const formattedText = formatDateString(cleanText);
 
-  // Update the state
-  setFunction(prev => ({
-    ...prev,
-    [field]: formattedText
-  }));
-};
+    // Update the state
+    setFunction(prev => ({
+      ...prev,
+      [field]: formattedText
+    }));
+  };
 
-// Handler for editing child date input changes
-const handleEditDateChange = (text) => {
-  // Only allow digits and hyphens
-  const cleanText = text.replace(/[^\d-]/g, '');
+  // Handler for editing child date input changes
+  const handleEditDateChange = (text) => {
+    // Only allow digits and hyphens
+    const cleanText = text.replace(/[^\d-]/g, '');
 
-  // Format the date as user types
-  const formattedText = formatDateString(cleanText);
+    // Format the date as user types
+    const formattedText = formatDateString(cleanText);
 
-  // Update the state
-  setEditingChildData(prev => ({
-    ...prev,
-    dateOfBirth: formattedText
-  }));
-};
+    // Update the state
+    setEditingChildData(prev => ({
+      ...prev,
+      dateOfBirth: formattedText
+    }));
+  };
 
-const handleDeleteChild = (childId) => {
-  Alert.alert(
-    'Delete Child',
-    'Are you sure you want to delete this child? This action cannot be undone.',
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const res = await childAPI.deleteChild(childId);
-            if (res.success) {
-              setChildren(children.filter(c => c._id !== childId));
-              Alert.alert('Success', 'Child deleted successfully!');
-            } else {
-              Alert.alert('Error', res.message || 'Failed to delete child');
+  const handleDeleteChild = (childId) => {
+    Alert.alert(
+      'Delete Child',
+      'Are you sure you want to delete this child? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await childAPI.deleteChild(childId);
+              if (res.success) {
+                setChildren(children.filter(c => c._id !== childId));
+                Alert.alert('Success', 'Child deleted successfully!');
+              } else {
+                Alert.alert('Error', res.message || 'Failed to delete child');
+              }
+            } catch (error) {
+              console.error('Error deleting child:', error?.message || error);
+              Alert.alert('Error', error?.message || 'Failed to delete child');
             }
-          } catch (error) {
-            console.error('Error deleting child:', error?.message || error);
-            Alert.alert('Error', error?.message || 'Failed to delete child');
           }
         }
-      }
-    ]
-  );
-};
+      ]
+    );
+  };
 
-// State for editing child
-const [editingChild, setEditingChild] = useState(null);
-const [editingChildData, setEditingChildData] = useState({
-  firstName: '',
-  lastName: '',
-  dateOfBirth: '',
-  diagnosis: '',
-  parentId: '',
-  therapistId: '',
-});
-
-const handleEditChild = (child) => {
-  setEditingChildData({
-    firstName: child.firstName,
-    lastName: child.lastName,
-    dateOfBirth: child.dateOfBirth || '',
-    diagnosis: child.diagnosis,
-    parentId: child.parentId,
-    therapistId: child.therapistId || '',
-  });
-  setEditingChild(child._id);
-};
-
-const handleUpdateChild = async () => {
-  if (!editingChild) return;
-
-  // Validate required fields
-  if (!editingChildData.firstName?.trim()) {
-    Alert.alert('Error', 'Please enter a first name');
-    return;
-  }
-  if (!editingChildData.lastName?.trim()) {
-    Alert.alert('Error', 'Please enter a last name');
-    return;
-  }
-  if (!editingChildData.diagnosis?.trim()) {
-    Alert.alert('Error', 'Please enter a diagnosis');
-    return;
-  }
-  if (!editingChildData.parentId?.trim()) {
-    Alert.alert('Error', 'Please enter a parent ID');
-    return;
-  }
-
-  // Validate date format if provided
-  if (editingChildData.dateOfBirth && !isValidDate(editingChildData.dateOfBirth)) {
-    Alert.alert('Error', 'Please enter a valid date of birth (YYYY-MM-DD)');
-    return;
-  }
-
-  // Validate name format
-  if (!/^[a-zA-Z\s'-]+$/.test(editingChildData.firstName.trim())) {
-    Alert.alert('Error', 'First name can only contain letters, spaces, hyphens, and apostrophes');
-    return;
-  }
-  if (!/^[a-zA-Z\s'-]+$/.test(editingChildData.lastName.trim())) {
-    Alert.alert('Error', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
-    return;
-  }
-
-  // Validate parent ID format (MongoDB ObjectId)
-  if (!/^[0-9a-fA-F]{24}$/.test(editingChildData.parentId.trim())) {
-    Alert.alert('Error', 'Please enter a valid parent ID (24-character hexadecimal)');
-    return;
-  }
-
-  // Validate therapist ID format if provided
-  if (editingChildData.therapistId && editingChildData.therapistId.trim() && !/^[0-9a-fA-F]{24}$/.test(editingChildData.therapistId.trim())) {
-    Alert.alert('Error', 'Please enter a valid therapist ID (24-character hexadecimal)');
-    return;
-  }
-
-  try {
-    // Prepare child data with properly formatted date
-    const childDataToSend = {
-      ...editingChildData,
-      // Format date for API if provided
-      ...(editingChildData.dateOfBirth && { dateOfBirth: formatDateForAPI(editingChildData.dateOfBirth) }),
-    };
-
-    const res = await childAPI.updateChild(editingChild, childDataToSend);
-    if (res.success) {
-      Alert.alert('Success', 'Child updated successfully!');
-
-      // Update the child in the local state
-      setChildren(prevChildren =>
-        prevChildren.map(c =>
-          c._id === editingChild ? { ...c, ...editingChildData } : c
-        )
-      );
-
-      setEditingChild(null);
-      setEditingChildData({
-        firstName: '',
-        lastName: '',
-        dateOfBirth: '',
-        diagnosis: '',
-        parentId: '',
-        therapistId: '',
-      });
-    } else {
-      Alert.alert('Error', res.message || 'Failed to update child');
-    }
-  } catch (error) {
-    console.error('Error updating child:', error?.message || error);
-    Alert.alert('Error', error?.message || 'Failed to update child');
-  }
-};
-
-const cancelEdit = () => {
-  setEditingChild(null);
-  setEditingChildData({
+  // State for editing child
+  const [editingChild, setEditingChild] = useState(null);
+  const [editingChildData, setEditingChildData] = useState({
     firstName: '',
     lastName: '',
     dateOfBirth: '',
@@ -552,296 +448,404 @@ const cancelEdit = () => {
     parentId: '',
     therapistId: '',
   });
-};
 
-const filteredChildren = Array.isArray(children) ? children.filter(child =>
-  child &&
-  (`${child.firstName || ''} ${child.lastName || ''}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (child.diagnosis || '').toLowerCase().includes(searchQuery.toLowerCase()))
-) : [];
+  const handleEditChild = (child) => {
+    setEditingChildData({
+      firstName: child.firstName,
+      lastName: child.lastName,
+      dateOfBirth: child.dateOfBirth || '',
+      diagnosis: child.diagnosis,
+      parentId: child.parentId,
+      therapistId: child.therapistId || '',
+    });
+    setEditingChild(child._id);
+  };
 
-if (loading) {
-  return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#007AFF" />
-    </View>
-  );
-}
+  const handleUpdateChild = async () => {
+    if (!editingChild) return;
 
-return (
-  <ScrollView style={styles.container}>
-    <Text style={styles.header}>Child Management</Text>
+    // Validate required fields
+    if (!editingChildData.firstName?.trim()) {
+      Alert.alert('Error', 'Please enter a first name');
+      return;
+    }
+    if (!editingChildData.lastName?.trim()) {
+      Alert.alert('Error', 'Please enter a last name');
+      return;
+    }
+    if (!editingChildData.diagnosis?.trim()) {
+      Alert.alert('Error', 'Please enter a diagnosis');
+      return;
+    }
+    if (!editingChildData.parentId?.trim()) {
+      Alert.alert('Error', 'Please enter a parent ID');
+      return;
+    }
 
-    {/* Search and Add */}
-    <View style={styles.section}>
-      <View style={styles.searchAndAdd}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#8E8E93" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search children..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+    // Validate date format if provided
+    if (editingChildData.dateOfBirth && !isValidDate(editingChildData.dateOfBirth)) {
+      Alert.alert('Error', 'Please enter a valid date of birth (YYYY-MM-DD)');
+      return;
+    }
 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddForm(!showAddForm)}
-        >
-          <Ionicons name="person-add" size={20} color="#fff" />
-          <Text style={styles.addButtonText}>
-            {showAddForm ? 'Cancel' : 'Add Child'}
-          </Text>
-        </TouchableOpacity>
+    // Validate name format
+    if (!/^[a-zA-Z\s'-]+$/.test(editingChildData.firstName.trim())) {
+      Alert.alert('Error', 'First name can only contain letters, spaces, hyphens, and apostrophes');
+      return;
+    }
+    if (!/^[a-zA-Z\s'-]+$/.test(editingChildData.lastName.trim())) {
+      Alert.alert('Error', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
+      return;
+    }
+
+    // Validate parent ID format (MongoDB ObjectId)
+    if (!/^[0-9a-fA-F]{24}$/.test(editingChildData.parentId.trim())) {
+      Alert.alert('Error', 'Please enter a valid parent ID (24-character hexadecimal)');
+      return;
+    }
+
+    // Validate therapist ID format if provided
+    if (editingChildData.therapistId && editingChildData.therapistId.trim() && !/^[0-9a-fA-F]{24}$/.test(editingChildData.therapistId.trim())) {
+      Alert.alert('Error', 'Please enter a valid therapist ID (24-character hexadecimal)');
+      return;
+    }
+
+    try {
+      // Prepare child data with properly formatted date
+      const childDataToSend = {
+        ...editingChildData,
+        // Format date for API if provided
+        ...(editingChildData.dateOfBirth && { dateOfBirth: formatDateForAPI(editingChildData.dateOfBirth) }),
+      };
+
+      const res = await childAPI.updateChild(editingChild, childDataToSend);
+      if (res.success) {
+        Alert.alert('Success', 'Child updated successfully!');
+
+        // Update the child in the local state
+        setChildren(prevChildren =>
+          prevChildren.map(c =>
+            c._id === editingChild ? { ...c, ...editingChildData } : c
+          )
+        );
+
+        setEditingChild(null);
+        setEditingChildData({
+          firstName: '',
+          lastName: '',
+          dateOfBirth: '',
+          diagnosis: '',
+          parentId: '',
+          therapistId: '',
+        });
+      } else {
+        Alert.alert('Error', res.message || 'Failed to update child');
+      }
+    } catch (error) {
+      console.error('Error updating child:', error?.message || error);
+      Alert.alert('Error', error?.message || 'Failed to update child');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingChild(null);
+    setEditingChildData({
+      firstName: '',
+      lastName: '',
+      dateOfBirth: '',
+      diagnosis: '',
+      parentId: '',
+      therapistId: '',
+    });
+  };
+
+  const filteredChildren = Array.isArray(children) ? children.filter(child =>
+    child &&
+    (`${child.firstName || ''} ${child.lastName || ''}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (child.diagnosis || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  ) : [];
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
-    </View>
+    );
+  }
 
-    {/* Add Child Form */}
-    {showAddForm && (
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.header}>Child Management</Text>
+
+      {/* Search and Add */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Add New Child</Text>
-        <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name</Text>
+        <View style={styles.searchAndAdd}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#8E8E93" />
             <TextInput
-              style={styles.textInput}
-              placeholder="Enter first name"
-              value={newChild.firstName}
-              onChangeText={(text) => setNewChild({ ...newChild, firstName: text })}
+              style={styles.searchInput}
+              placeholder="Search children..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter last name"
-              value={newChild.lastName}
-              onChangeText={(text) => setNewChild({ ...newChild, lastName: text })}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="YYYY-MM-DD"
-              value={newChild.dateOfBirth}
-              onChangeText={(text) => handleDateChange(text, setNewChild, 'dateOfBirth')}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Diagnosis</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter diagnosis"
-              value={newChild.diagnosis}
-              onChangeText={(text) => setNewChild({ ...newChild, diagnosis: text })}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Parent (Required)</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openPicker('parent', false)}
-            >
-              <Text style={[styles.selectorText, !newChild.parentId && styles.placeholderText]}>
-                {newChild.parentId ? getUserName(newChild.parentId, parents) : 'Select Parent'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Therapist (Optional)</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openPicker('therapist', false)}
-            >
-              <Text style={[styles.selectorText, !newChild.therapistId && styles.placeholderText]}>
-                {newChild.therapistId ? getUserName(newChild.therapistId, therapists) : 'Select Therapist'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.submitButton} onPress={handleAddChild}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddForm(!showAddForm)}
+          >
             <Ionicons name="person-add" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>Add Child</Text>
+            <Text style={styles.addButtonText}>
+              {showAddForm ? 'Cancel' : 'Add Child'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
-    )}
 
-    {/* Edit Child Form */}
-    {editingChild && (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Edit Child</Text>
-        <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter first name"
-              value={editingChildData.firstName}
-              onChangeText={(text) => setEditingChildData({ ...editingChildData, firstName: text })}
-            />
-          </View>
+      {/* Add Child Form */}
+      {showAddForm && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Add New Child</Text>
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter first name"
+                value={newChild.firstName}
+                onChangeText={(text) => setNewChild({ ...newChild, firstName: text })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter last name"
-              value={editingChildData.lastName}
-              onChangeText={(text) => setEditingChildData({ ...editingChildData, lastName: text })}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter last name"
+                value={newChild.lastName}
+                onChangeText={(text) => setNewChild({ ...newChild, lastName: text })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="YYYY-MM-DD"
-              value={editingChildData.dateOfBirth}
-              onChangeText={handleEditDateChange}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="YYYY-MM-DD"
+                value={newChild.dateOfBirth}
+                onChangeText={(text) => handleDateChange(text, setNewChild, 'dateOfBirth')}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Diagnosis</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter diagnosis"
-              value={editingChildData.diagnosis}
-              onChangeText={(text) => setEditingChildData({ ...editingChildData, diagnosis: text })}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Diagnosis</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter diagnosis"
+                value={newChild.diagnosis}
+                onChangeText={(text) => setNewChild({ ...newChild, diagnosis: text })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Parent (Required)</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openPicker('parent', true)}
-            >
-              <Text style={[styles.selectorText, !editingChildData.parentId && styles.placeholderText]}>
-                {editingChildData.parentId ? getUserName(editingChildData.parentId, parents) : 'Select Parent'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Parent (Required)</Text>
+              <TouchableOpacity
+                style={styles.selectorButton}
+                onPress={() => openPicker('parent', false)}
+              >
+                <Text style={[styles.selectorText, !newChild.parentId && styles.placeholderText]}>
+                  {newChild.parentId ? getUserName(newChild.parentId, parents) : 'Select Parent'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Therapist (Optional)</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openPicker('therapist', true)}
-            >
-              <Text style={[styles.selectorText, !editingChildData.therapistId && styles.placeholderText]}>
-                {editingChildData.therapistId ? getUserName(editingChildData.therapistId, therapists) : 'Select Therapist'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Therapist (Optional)</Text>
+              <TouchableOpacity
+                style={styles.selectorButton}
+                onPress={() => openPicker('therapist', false)}
+              >
+                <Text style={[styles.selectorText, !newChild.therapistId && styles.placeholderText]}>
+                  {newChild.therapistId ? getUserName(newChild.therapistId, therapists) : 'Select Therapist'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.editButtonContainer}>
-            <TouchableOpacity style={[styles.actionButton, { flex: 1, marginRight: 8 }]} onPress={cancelEdit}>
-              <Text style={styles.actionText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.submitButton, { flex: 1, marginLeft: 8 }]} onPress={handleUpdateChild}>
-              <Text style={styles.submitButtonText}>Update</Text>
+            <TouchableOpacity style={styles.submitButton} onPress={handleAddChild}>
+              <Ionicons name="person-add" size={20} color="#fff" />
+              <Text style={styles.submitButtonText}>Add Child</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    )}
+      )}
 
-    {/* Children List */}
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Children ({filteredChildren.length})</Text>
-      <View style={styles.childrenList}>
-        {filteredChildren.map((child) => (
-          <View key={child._id} style={styles.childCard}>
-            <View style={styles.childHeader}>
-              <View style={styles.childInfo}>
-                <View style={styles.avatar}>
-                  <Ionicons name="person" size={24} color="#fff" />
-                </View>
-                <View>
-                  <Text style={styles.childName}>{child.firstName} {child.lastName}</Text>
-                  <Text style={styles.childDetails}>{child.diagnosis}</Text>
-                </View>
-              </View>
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.iconButton, { marginRight: 8 }]}
-                  onPress={() => handleEditChild(child)}
-                >
-                  <Ionicons name="create" size={20} color="#007AFF" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => handleDeleteChild(child._id)}
-                >
-                  <Ionicons name="trash" size={20} color="#FF3B30" />
-                </TouchableOpacity>
-              </View>
+      {/* Edit Child Form */}
+      {editingChild && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Edit Child</Text>
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter first name"
+                value={editingChildData.firstName}
+                onChangeText={(text) => setEditingChildData({ ...editingChildData, firstName: text })}
+              />
             </View>
 
-            <View style={styles.childDetailsContainer}>
-              <View style={styles.detailRow}>
-                <Ionicons name="person" size={16} color="#8E8E93" />
-                <Text style={styles.detailText}>Parent ID: {child.parentId || 'N/A'}</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter last name"
+                value={editingChildData.lastName}
+                onChangeText={(text) => setEditingChildData({ ...editingChildData, lastName: text })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="YYYY-MM-DD"
+                value={editingChildData.dateOfBirth}
+                onChangeText={handleEditDateChange}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Diagnosis</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter diagnosis"
+                value={editingChildData.diagnosis}
+                onChangeText={(text) => setEditingChildData({ ...editingChildData, diagnosis: text })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Parent (Required)</Text>
+              <TouchableOpacity
+                style={styles.selectorButton}
+                onPress={() => openPicker('parent', true)}
+              >
+                <Text style={[styles.selectorText, !editingChildData.parentId && styles.placeholderText]}>
+                  {editingChildData.parentId ? getUserName(editingChildData.parentId, parents) : 'Select Parent'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Therapist (Optional)</Text>
+              <TouchableOpacity
+                style={styles.selectorButton}
+                onPress={() => openPicker('therapist', true)}
+              >
+                <Text style={[styles.selectorText, !editingChildData.therapistId && styles.placeholderText]}>
+                  {editingChildData.therapistId ? getUserName(editingChildData.therapistId, therapists) : 'Select Therapist'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.editButtonContainer}>
+              <TouchableOpacity style={[styles.actionButton, { flex: 1, marginRight: 8 }]} onPress={cancelEdit}>
+                <Text style={styles.actionText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.submitButton, { flex: 1, marginLeft: 8 }]} onPress={handleUpdateChild}>
+                <Text style={styles.submitButtonText}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Children List */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Children ({filteredChildren.length})</Text>
+        <View style={styles.childrenList}>
+          {filteredChildren.map((child) => (
+            <View key={child._id} style={styles.childCard}>
+              <View style={styles.childHeader}>
+                <View style={styles.childInfo}>
+                  <View style={styles.avatar}>
+                    <Ionicons name="person" size={24} color="#fff" />
+                  </View>
+                  <View>
+                    <Text style={styles.childName}>{child.firstName} {child.lastName}</Text>
+                    <Text style={styles.childDetails}>{child.diagnosis}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.iconButton, { marginRight: 8 }]}
+                    onPress={() => handleEditChild(child)}
+                  >
+                    <Ionicons name="create" size={20} color="#007AFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleDeleteChild(child._id)}
+                  >
+                    <Ionicons name="trash" size={20} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <View style={styles.detailRow}>
-                <Ionicons name="person" size={16} color="#8E8E93" />
-                <Text style={styles.detailText}>Therapist ID: {child.therapistId || 'Unassigned'}</Text>
-              </View>
+              <View style={styles.childDetailsContainer}>
+                <View style={styles.detailRow}>
+                  <Ionicons name="person" size={16} color="#8E8E93" />
+                  <Text style={styles.detailText}>Parent ID: {parents.find(p => p._id === child.parentId)?.name || 'N/A'}</Text>
+                </View>
 
-              <View style={styles.detailRow}>
-                <Ionicons name="calendar" size={16} color="#8E8E93" />
-                <Text style={styles.detailText}>
-                  DOB: {child.dateOfBirth ? (() => {
-                    try {
-                      const date = new Date(child.dateOfBirth);
-                      if (isNaN(date.getTime())) {
+                <View style={styles.detailRow}>
+                  <Ionicons name="person" size={16} color="#8E8E93" />
+                  <Text style={styles.detailText}>Therapist ID: {therapists.find(t => t._id === child.therapistId)?.name || 'Unassigned'}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Ionicons name="calendar" size={16} color="#8E8E93" />
+                  <Text style={styles.detailText}>
+                    DOB: {child.dateOfBirth ? (() => {
+                      try {
+                        const date = new Date(child.dateOfBirth);
+                        if (isNaN(date.getTime())) {
+                          return 'Invalid Date';
+                        }
+                        return date.toLocaleDateString();
+                      } catch (e) {
                         return 'Invalid Date';
                       }
-                      return date.toLocaleDateString();
-                    } catch (e) {
-                      return 'Invalid Date';
-                    }
-                  })() : 'N/A'}
-                </Text>
+                    })() : 'N/A'}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          ))}
 
-        {filteredChildren.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="people" size={40} color="#8E8E93" />
-            <Text style={styles.emptyStateText}>No children found</Text>
-            <Text style={styles.emptyStateSubtext}>Try adjusting your search criteria</Text>
-          </View>
-        )}
+          {filteredChildren.length === 0 && (
+            <View style={styles.emptyState}>
+              <Ionicons name="people" size={40} color="#8E8E93" />
+              <Text style={styles.emptyStateText}>No children found</Text>
+              <Text style={styles.emptyStateSubtext}>Try adjusting your search criteria</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
 
 
-    {/* Pickers */}
-    {renderUserPickerModal(showParentPicker, () => setShowParentPicker(false), parents, 'parent')}
-    {renderUserPickerModal(showTherapistPicker, () => setShowTherapistPicker(false), therapists, 'therapist')}
+      {/* Pickers */}
+      {renderUserPickerModal(showParentPicker, () => setShowParentPicker(false), parents, 'parent')}
+      {renderUserPickerModal(showTherapistPicker, () => setShowTherapistPicker(false), therapists, 'therapist')}
 
-  </ScrollView>
-);
+    </ScrollView>
+  );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -1154,6 +1158,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-}
 
 export default ChildManagementScreen;
