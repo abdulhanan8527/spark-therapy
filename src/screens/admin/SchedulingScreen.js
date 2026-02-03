@@ -131,10 +131,12 @@ const SchedulingScreen = () => {
       if (sessionsRes.success) {
         const sessionsData = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
         console.log('Setting sessions:', sessionsData);
+        console.log('Total sessions loaded:', sessionsData.length);
         setSessions(sessionsData);
       } else {
         console.log('Sessions fetch failed, setting empty array');
         setSessions([]);
+        console.log('Sessions set to empty array');
       }
       
     } catch (error) {
@@ -239,7 +241,16 @@ const SchedulingScreen = () => {
         
         // Immediate UI update with the new session
         if (res.data) {
-          setSessions(prevSessions => [...prevSessions, res.data]);
+          // Add the new session to the state
+          setSessions(prevSessions => {
+            // Check if session already exists to avoid duplicates
+            const exists = prevSessions.some(session => session._id === res.data._id);
+            if (!exists) {
+              console.log('Adding new session to UI:', res.data);
+              return [...prevSessions, res.data];
+            }
+            return prevSessions;
+          });
         }
         
         // Aggressive refresh strategy to ensure backend sync
@@ -253,7 +264,8 @@ const SchedulingScreen = () => {
             console.log('Second refresh attempt...');
             await fetchInitialData();
             console.log('Second refresh complete');
-            forceRefresh(); // Force component re-render
+            // Force a complete re-render by updating the refresh key
+            setRefreshKey(prev => prev + 1);
           }, 1000);
         }, 500);
         
@@ -370,8 +382,11 @@ const SchedulingScreen = () => {
   
   const forceRefresh = () => {
     console.log('Force refreshing component...');
-    setRefreshKey(prev => prev + 1);
     fetchInitialData();
+    // Update the refresh key after fetching data to ensure re-render
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 100);
   };
   
   // Group sessions by date
