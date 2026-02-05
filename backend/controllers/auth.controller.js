@@ -39,9 +39,29 @@ const generateRefreshTokenHash = (refreshToken) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { name, email, password, role, phone, specialization } = req.body;
+  const { name, email, password, role, phone, specialization, adminSecretKey } = req.body;
 
   try {
+    // Validate admin secret key if role is admin
+    if (role === 'admin') {
+      const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || 'SPARK_ADMIN_2026_SECRET';
+      
+      if (!adminSecretKey) {
+        return errorResponse(res, 'Admin secret key is required to create an admin account', 403);
+      }
+      
+      if (adminSecretKey !== ADMIN_SECRET_KEY) {
+        console.warn('Failed admin signup attempt with invalid key:', {
+          email,
+          providedKey: adminSecretKey,
+          timestamp: new Date().toISOString()
+        });
+        return errorResponse(res, 'Invalid admin secret key. Contact system administrator.', 403);
+      }
+      
+      console.log('Valid admin secret key provided for:', email);
+    }
+    
     // Check if user exists
     const userExists = await User.findOne({ email });
 

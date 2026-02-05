@@ -20,18 +20,26 @@ const TherapistDeactivationScreen = () => {
       if (response.success) {
         console.log("Therapists loaded loop:", response.data);
         // Map the response data to match the expected format
-        const mappedTherapists = response.data.data.map(therapist => ({
+        // response.data is directly the array of therapists
+        const therapistsArray = Array.isArray(response.data) ? response.data : [];
+        const mappedTherapists = therapistsArray.map(therapist => ({
           id: therapist._id,
           name: `${therapist.name}`,
           email: therapist.email,
           specialization: therapist.specialization || 'N/A',
           status: therapist.isActive ? 'active' : 'inactive',
-          assignedChildren: therapist.assignedChildrenCount || 0,
-          sessionsThisWeek: therapist.sessionCount || 0,
+          assignedChildren: therapist.assignedChildren || 0,
+          sessionsThisWeek: therapist.sessionsThisWeek || 0,
           startDate: therapist.createdAt ? new Date(therapist.createdAt).toISOString().split('T')[0] : 'N/A',
         }));
-        console.log("Therapists loaded loop new:", response.data);
+        console.log("Therapists mapped with counts:", mappedTherapists.map(t => ({
+          name: t.name,
+          assignedChildren: t.assignedChildren,
+          sessionsThisWeek: t.sessionsThisWeek
+        })));
+        console.log('About to set therapists state with', mappedTherapists.length, 'therapists');
         setTherapists(mappedTherapists);
+        console.log('Therapists state set successfully');
       } else {
         setTherapists([]);
         console.error('Failed to load therapists:', response.message);
@@ -106,11 +114,18 @@ const TherapistDeactivationScreen = () => {
     return status === 'active' ? styles.activeStatus : styles.inactiveStatus;
   };
 
-  const filteredTherapists = therapists.filter(therapist =>
-    therapist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    therapist.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    therapist.specialization.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  console.log('Therapists state:', therapists);
+  console.log('Therapists count:', therapists.length);
+  
+  const filteredTherapists = therapists.filter(therapist => {
+    // Safe filtering with null checks
+    const nameMatch = therapist.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    const emailMatch = therapist.email?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    const specializationMatch = therapist.specialization?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    return nameMatch || emailMatch || specializationMatch;
+  });
+  
+  console.log('Filtered therapists count:', filteredTherapists.length);
 
   return (
     <ScrollView style={styles.container}>

@@ -12,10 +12,10 @@ const getVideosByTherapist = async (req, res) => {
   try {
     // Only return videos created by the authenticated therapist
     const videos = await Video.find({ therapistId: req.user._id })
-      .populate('childId', 'name')
+      .populate('childId', 'firstName lastName')
       .sort({ dateRecorded: -1 });
 
-    successResponse(res, 'Videos retrieved successfully', videos);
+    successResponse(res, videos, 'Videos retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -24,24 +24,34 @@ const getVideosByTherapist = async (req, res) => {
 /**
  * Get videos by child
  * @route GET /api/videos/child/:childId
- * @access Therapist, Admin
+ * @access Therapist, Admin, Parent
  */
 const getVideosByChild = async (req, res) => {
   try {
     const { childId } = req.params;
     
-    // Verify child belongs to therapist or user is admin
-    const videoFilter = {
-      childId,
-      ...(req.user.role !== 'admin' && { therapistId: req.user._id })
-    };
+    // Build filter based on user role
+    let videoFilter = { childId };
+    
+    if (req.user.role === 'therapist') {
+      // Therapists can only see their own videos
+      videoFilter.therapistId = req.user._id;
+    } else if (req.user.role === 'parent') {
+      // Parents can see all videos for their children
+      // Verify parent owns this child
+      const child = await Child.findById(childId);
+      if (!child || child.parentId.toString() !== req.user._id.toString()) {
+        return errorResponse(res, 'Access denied', 403);
+      }
+    }
+    // Admin can see all videos
 
     const videos = await Video.find(videoFilter)
-      .populate('childId', 'name')
+      .populate('childId', 'firstName lastName')
       .populate('therapistId', 'name')
       .sort({ dateRecorded: -1 });
 
-    successResponse(res, 'Videos retrieved successfully', videos);
+    successResponse(res, videos, 'Videos retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -55,7 +65,7 @@ const getVideosByChild = async (req, res) => {
 const getVideoById = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id)
-      .populate('childId', 'name')
+      .populate('childId', 'firstName lastName')
       .populate('therapistId', 'name');
 
     if (!video) {
@@ -67,7 +77,7 @@ const getVideoById = async (req, res) => {
       return errorResponse(res, 'Access denied', 403);
     }
 
-    successResponse(res, 'Video retrieved successfully', video);
+    successResponse(res, video, 'Video retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -80,11 +90,19 @@ const getVideoById = async (req, res) => {
  */
 const createVideo = async (req, res) => {
   try {
-    const { childId, title, description, videoUrl, weekNumber, year } = req.body;
+    const { childId, title, description, weekNumber, year } = req.body;
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return errorResponse(res, 'Video file is required', 400);
+    }
+
+    // Get video URL from Cloudinary
+    const videoUrl = req.file.path;
 
     // Validate required fields
-    if (!childId || !title || !videoUrl || !weekNumber || !year) {
-      return errorResponse(res, 'Child ID, title, video URL, week number, and year are required', 400);
+    if (!childId || !title || !weekNumber || !year) {
+      return errorResponse(res, 'Child ID, title, week number, and year are required', 400);
     }
 
     // Verify child exists and belongs to therapist
@@ -98,18 +116,18 @@ const createVideo = async (req, res) => {
       return errorResponse(res, 'You can only create videos for children assigned to you', 403);
     }
 
-    // Create video
+    // Create video with Cloudinary URL
     const video = await Video.create({
       childId,
       therapistId: req.user._id,
       title,
       description,
-      videoUrl,
+      videoUrl, // This is now the Cloudinary URL
       weekNumber,
       year
     });
 
-    successResponse(res, 'Video created successfully', video, 201);
+    successResponse(res, video, 'Video created successfully', 201);
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -150,7 +168,7 @@ const updateVideo = async (req, res) => {
 
     await video.save();
 
-    successResponse(res, 'Video updated successfully', video);
+    successResponse(res, video, 'Video updated successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -176,7 +194,7 @@ const deleteVideo = async (req, res) => {
 
     await Video.findByIdAndDelete(req.params.id);
 
-    successResponse(res, 'Video deleted successfully', {});
+    successResponse(res, {}, 'Video deleted successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -201,7 +219,7 @@ const approveVideo = async (req, res) => {
 
     await video.save();
 
-    successResponse(res, 'Video approved successfully', video);
+    successResponse(res, video, 'Video approved successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }
@@ -228,7 +246,7 @@ const rejectVideo = async (req, res) => {
 
     await video.save();
 
-    successResponse(res, 'Video rejected successfully', video);
+    successResponse(res, video, 'Video rejected successfully');
   } catch (error) {
     errorResponse(res, error.message, 500);
   }

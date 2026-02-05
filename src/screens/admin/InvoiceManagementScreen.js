@@ -1,7 +1,29 @@
+/**
+ * Invoice Management Screen
+ * 
+ * ANDROID PDF DOWNLOAD FIX:
+ * To enable PDF download on Android, install the required native module:
+ * 
+ * Option 1 (Recommended): react-native-blob-util
+ *   npm install react-native-blob-util
+ *   cd ios && pod install && cd ..
+ * 
+ * Option 2: rn-fetch-blob (deprecated but works)
+ *   npm install rn-fetch-blob
+ *   cd ios && pod install && cd ..
+ * 
+ * Then rebuild the app:
+ *   npx expo run:android
+ * 
+ * NOTE: Web platform works without additional setup
+ */
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal, ActivityIndicator, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 // Conditional import for PDF viewer - only for native platforms
 let Pdf = null;
@@ -55,6 +77,9 @@ const InvoiceManagementScreen = () => {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pdfModalVisible, setPdfModalVisible] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfTitle, setPdfTitle] = useState('');
 
   // Load PDF modules when component mounts
   useEffect(() => {
@@ -68,13 +93,30 @@ const InvoiceManagementScreen = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
+      console.log('=== FETCHING INVOICES ===');
       // Fetch all invoices from backend
       const response = await invoiceAPI.getAllInvoices();
+      console.log('Invoice API response:', response);
+      
       if (response.success) {
-        // Ensure invoices is always an array
-        const invoicesData = response.data.invoices || response.data || [];
-        // Make sure invoicesData is an array
+        // Handle nested data structure: response.data.data
+        let invoicesData = response.data;
+        
+        // Check if data is double-nested
+        if (invoicesData && invoicesData.data) {
+          console.log('Found nested data.data structure');
+          invoicesData = invoicesData.data;
+        }
+        
+        // Check for invoices property
+        if (invoicesData && invoicesData.invoices) {
+          console.log('Found invoices property');
+          invoicesData = invoicesData.invoices;
+        }
+        
+        // Ensure it's an array
         const invoicesArray = Array.isArray(invoicesData) ? invoicesData : [];
+        console.log(`Setting ${invoicesArray.length} invoices in state:`, invoicesArray);
         setInvoices(invoicesArray);
       } else {
         console.error('Failed to fetch invoices:', response.message);
@@ -87,6 +129,7 @@ const InvoiceManagementScreen = () => {
       setInvoices([]);
     } finally {
       setLoading(false);
+      console.log('=== FETCH INVOICES COMPLETE ===');
     }
   };
 
@@ -209,49 +252,44 @@ const InvoiceManagementScreen = () => {
           Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
         }
       } else {
-        // Native platforms
-        Alert.alert(
-          'Download Invoice',
-          'Would you like to download this invoice as a PDF?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Download',
-              onPress: async () => {
-                try {
-                  // Show loading indicator
-                  Alert.alert('Downloading...', 'Please wait while we prepare your invoice PDF');
-                  
-                  // Get the PDF from the backend
-                  const response = await invoiceAPI.downloadInvoicePDF(invoiceId);
-                  
-                  if (response && response.data) {
-                    // Convert the response data to base64 for PDF saving
-                    const base64 = response.data.toString('base64');
-                    
-                    // Determine the file system path based on platform
-                    let path;
-                    if (Platform.OS === 'android') {
-                      path = `${RNFetchBlob.fs.dirs.DownloadDir}/invoice_${invoiceId}.pdf`;
-                    } else {
-                      path = `${RNFetchBlob.fs.dirs.DocumentDir}/invoice_${invoiceId}.pdf`;
-                    }
-                    
-                    // Write the PDF to device storage
-                    await RNFetchBlob.fs.writeFile(path, base64, 'base64');
-                    
-                    Alert.alert('Success', `Invoice PDF saved to ${path}`);
-                  } else {
-                    Alert.alert('Error', 'Failed to download invoice PDF');
-                  }
-                } catch (error) {
-                  console.error('Download error:', error);
-                  Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
-                }
-              }
+        // Native platforms - use expo-file-system and expo-sharing
+        try {
+          Alert.alert('Downloading...', 'Please wait while we prepare your invoice PDF');
+          
+          // Get auth token
+          const token = await AsyncStorage.getItem('userToken');
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const downloadUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
+          
+          // Download file using expo-file-system
+          const fileUri = FileSystem.documentDirectory + `invoice_${invoiceId}.pdf`;
+          
+          const downloadResult = await FileSystem.downloadAsync(
+            downloadUrl,
+            fileUri
+          );
+          
+          if (downloadResult.status === 200) {
+            // Check if sharing is available
+            const isAvailable = await Sharing.isAvailableAsync();
+            
+            if (isAvailable) {
+              // Share the file (this allows user to save/open it)
+              await Sharing.shareAsync(downloadResult.uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: 'Save Invoice PDF',
+                UTI: 'com.adobe.pdf'
+              });
+            } else {
+              Alert.alert('Success', `Invoice saved to ${fileUri}`);
             }
-          ]
-        );
+          } else {
+            Alert.alert('Error', 'Failed to download invoice PDF');
+          }
+        } catch (error) {
+          console.error('Download error:', error);
+          Alert.alert('Error', 'Failed to download invoice PDF: ' + error.message);
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
@@ -260,12 +298,15 @@ const InvoiceManagementScreen = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
+    if (!status) return <Ionicons name="time" size={16} color="#8E8E93" />;
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'paid':
         return <Ionicons name="checkmark-circle" size={16} color="#34C759" />;
       case 'overdue':
         return <Ionicons name="alert-circle" size={16} color="#FF3B30" />;
       case 'upcoming':
+      case 'pending':
         return <Ionicons name="time" size={16} color="#FF9500" />;
       default:
         return <Ionicons name="time" size={16} color="#8E8E93" />;
@@ -273,37 +314,60 @@ const InvoiceManagementScreen = () => {
   };
 
   const getStatusText = (status) => {
-    switch (status) {
+    if (!status) return 'Pending';
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'paid':
         return 'Paid';
       case 'overdue':
         return 'Overdue';
       case 'upcoming':
         return 'Upcoming';
+      case 'pending':
+        return 'Pending';
       default:
-        return 'Unknown';
+        return status.charAt(0).toUpperCase() + status.slice(1); // Capitalize first letter
     }
   };
 
   const getStatusStyle = (status) => {
-    switch (status) {
+    if (!status) return styles.upcomingStatus;
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'paid':
         return styles.paidStatus;
       case 'overdue':
         return styles.overdueStatus;
       case 'upcoming':
+      case 'pending':
         return styles.upcomingStatus;
       default:
         return styles.defaultStatus;
     }
   };
 
-  const filteredInvoices = Array.isArray(invoices) ? invoices.filter(invoice =>
-    invoice.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    invoice.parentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    invoice.childName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    invoice.description.toLowerCase().includes(searchQuery.toLowerCase())
-  ) : [];
+  const filteredInvoices = Array.isArray(invoices) ? invoices.filter(invoice => {
+    const query = searchQuery.toLowerCase();
+    
+    // Safely access nested properties with optional chaining
+    const invoiceNumber = invoice.invoiceNumber?.toLowerCase() || '';
+    const parentName = invoice.parentId?.name?.toLowerCase() || '';
+    const childFirstName = invoice.childId?.firstName?.toLowerCase() || '';
+    const childLastName = invoice.childId?.lastName?.toLowerCase() || '';
+    const childFullName = `${childFirstName} ${childLastName}`.trim();
+    const description = invoice.description?.toLowerCase() || '';
+    const status = invoice.status?.toLowerCase() || '';
+    
+    return (
+      invoiceNumber.includes(query) ||
+      parentName.includes(query) ||
+      childFirstName.includes(query) ||
+      childLastName.includes(query) ||
+      childFullName.includes(query) ||
+      description.includes(query) ||
+      status.includes(query)
+    );
+  }) : [];
 
   return (
     <>
@@ -402,12 +466,16 @@ const InvoiceManagementScreen = () => {
         <Text style={styles.sectionTitle}>Invoices ({filteredInvoices.length})</Text>
         <View style={styles.invoicesList}>
           {filteredInvoices.map((invoice) => (
-            <View key={invoice.id} style={styles.invoiceCard}>
+            <View key={invoice._id} style={styles.invoiceCard}>
               <View style={styles.invoiceHeader}>
                 <View style={styles.invoiceInfo}>
-                  <Text style={styles.invoiceId}>{invoice.id}</Text>
-                  <Text style={styles.invoiceParent}>{invoice.parentName}</Text>
-                  <Text style={styles.invoiceChild}>{invoice.childName}</Text>
+                  <Text style={styles.invoiceId}>{invoice.invoiceNumber || invoice._id}</Text>
+                  <Text style={styles.invoiceParent}>{invoice.parentId?.name || 'Unknown Parent'}</Text>
+                  <Text style={styles.invoiceChild}>
+                    {invoice.childId?.firstName && invoice.childId?.lastName 
+                      ? `${invoice.childId.firstName} ${invoice.childId.lastName}` 
+                      : 'Unknown Child'}
+                  </Text>
                 </View>
                 
                 <View style={[styles.statusBadge, getStatusStyle(invoice.status)]}>
@@ -416,28 +484,34 @@ const InvoiceManagementScreen = () => {
                 </View>
               </View>
               
-              <Text style={styles.invoiceDescription}>{invoice.description}</Text>
+              <Text style={styles.invoiceDescription}>{invoice.description || 'No description'}</Text>
               
               <View style={styles.invoiceDetails}>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Amount</Text>
-                  <Text style={styles.detailValue}>PKR {invoice.amount.toFixed(2)}</Text>
+                  <Text style={styles.detailValue}>PKR {invoice.amount?.toFixed(2) || '0.00'}</Text>
                 </View>
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Issued</Text>
-                  <Text style={styles.detailValue}>{invoice.issuedDate}</Text>
+                  <Text style={styles.detailValue}>
+                    {invoice.issuedDate ? new Date(invoice.issuedDate).toLocaleDateString() : 'N/A'}
+                  </Text>
                 </View>
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Due Date</Text>
-                  <Text style={styles.detailValue}>{invoice.dueDate}</Text>
+                  <Text style={styles.detailValue}>
+                    {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}
+                  </Text>
                 </View>
                 
                 {invoice.status === 'paid' && invoice.paidDate && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Paid</Text>
-                    <Text style={styles.detailValue}>{invoice.paidDate}</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(invoice.paidDate).toLocaleDateString()}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -445,7 +519,7 @@ const InvoiceManagementScreen = () => {
               <View style={styles.actionButtons}>
                 <TouchableOpacity 
                   style={styles.actionButton} 
-                  onPress={() => handleViewInvoice(invoice.id)}
+                  onPress={() => handleViewInvoice(invoice._id)}
                 >
                   <Ionicons name="eye" size={16} color="#007AFF" />
                   <Text style={styles.actionText}>View</Text>
@@ -453,7 +527,7 @@ const InvoiceManagementScreen = () => {
                 
                 <TouchableOpacity 
                   style={styles.actionButton} 
-                  onPress={() => handleDownloadInvoice(invoice.id)}
+                  onPress={() => handleDownloadInvoice(invoice._id)}
                 >
                   <Ionicons name="download" size={16} color="#34C759" />
                   <Text style={styles.actionText}>Download</Text>

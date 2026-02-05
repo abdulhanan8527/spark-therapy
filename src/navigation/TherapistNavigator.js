@@ -1,22 +1,27 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, User, MessageCircle, Play, FileText, Calendar, Bell, Book } from '../components/SimpleIcons';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Home, User, MessageCircle, Calendar, Bell } from '../components/SimpleIcons';
 import { useAuth } from '../contexts/AuthContext';
 
 // Therapist Screens
 import TherapistDashboardScreen from '../screens/therapist/DashboardScreen';
 import ChildDetailsScreen from '../screens/therapist/ChildDetailsScreen';
 import DailyFeedbackScreen from '../screens/therapist/DailyFeedbackScreen';
-import WeeklyVideoScreen from '../screens/therapist/WeeklyVideoScreen';
-import QuarterlyReportScreen from '../screens/therapist/QuarterlyReportScreen';
 import AttendanceScreen from '../screens/therapist/AttendanceScreen';
 import NotificationsScreen from '../screens/therapist/NotificationsScreen';
+
+// Secondary Screens (accessed via dashboard)
+import WeeklyVideoScreen from '../screens/therapist/WeeklyVideoScreen';
+import QuarterlyReportScreen from '../screens/therapist/QuarterlyReportScreen';
 import LeaveRequestsScreen from '../screens/therapist/LeaveRequestsScreen';
 import ProgramBuilderScreen from '../screens/therapist/ProgramBuilderScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-const TherapistTabs = () => {
+// Main Tab Navigator with 5 essential tabs
+const TherapistTabNavigator = () => {
   const { user } = useAuth();
 
   return (
@@ -66,26 +71,6 @@ const TherapistTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Video"
-        component={WeeklyVideoScreen}
-        options={{
-          tabBarLabel: 'Video',
-          tabBarIcon: ({ color, size }) => (
-            <Play size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Reports"
-        component={QuarterlyReportScreen}
-        options={{
-          tabBarLabel: 'Reports',
-          tabBarIcon: ({ color, size }) => (
-            <FileText size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="Schedule"
         component={AttendanceScreen}
         options={{
@@ -96,17 +81,7 @@ const TherapistTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Leave"
-        component={LeaveRequestsScreen}
-        options={{
-          tabBarLabel: 'Leave',
-          tabBarIcon: ({ color, size }) => (
-            <Calendar size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Notifications"
+        name="Alerts"
         component={NotificationsScreen}
         options={{
           tabBarLabel: 'Alerts',
@@ -115,18 +90,64 @@ const TherapistTabs = () => {
           ),
         }}
       />
-      <Tab.Screen
-        name="Programs"
-        component={ProgramBuilderScreen}
-        options={{
-          tabBarLabel: 'Programs',
-          tabBarIcon: ({ color, size }) => (
-            <Book size={size} color={color} />
-          ),
-        }}
-      />
     </Tab.Navigator>
   );
 };
 
-export default TherapistTabs;
+// Main Therapist Navigator with Stack for Secondary Screens
+const TherapistNavigator = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="TherapistTabs"
+    >
+      <Stack.Screen name="TherapistTabs" component={TherapistTabNavigator} />
+      <Stack.Screen 
+        name="Video" 
+        component={WeeklyVideoScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Weekly Videos',
+          headerStyle: { backgroundColor: '#34C759' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="Reports" 
+        component={QuarterlyReportScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Quarterly Reports',
+          headerStyle: { backgroundColor: '#34C759' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="Leave" 
+        component={LeaveRequestsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Leave Requests',
+          headerStyle: { backgroundColor: '#34C759' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="Programs" 
+        component={ProgramBuilderScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Program Builder',
+          headerStyle: { backgroundColor: '#34C759' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export default TherapistNavigator;

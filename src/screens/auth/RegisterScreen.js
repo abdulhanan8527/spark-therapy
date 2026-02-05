@@ -8,6 +8,7 @@ const RegisterScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('parent');
+  const [adminSecretKey, setAdminSecretKey] = useState(''); // Secret key for admin signup
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
@@ -17,6 +18,15 @@ const RegisterScreen = ({ navigation }) => {
       return;
     }
 
+    // Check admin secret key if role is admin
+    if (role === 'admin') {
+      if (!adminSecretKey) {
+        Alert.alert('Error', 'Admin secret key is required to create an admin account');
+        return;
+      }
+      // The backend will validate the secret key
+    }
+
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
@@ -24,7 +34,14 @@ const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const response = await register({ name, email, password, role });
+      const registrationData = { name, email, password, role };
+      
+      // Add secret key if admin role
+      if (role === 'admin') {
+        registrationData.adminSecretKey = adminSecretKey;
+      }
+      
+      const response = await register(registrationData);
 
       if (response.success) {
         Alert.alert(
@@ -108,6 +125,23 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Show admin secret key field only when admin role is selected */}
+        {role === 'admin' && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Admin Secret Key *</Text>
+            <Text style={styles.helperText}>Required to create an admin account</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter admin secret key"
+              value={adminSecretKey}
+              onChangeText={setAdminSecretKey}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleRegister}
@@ -160,6 +194,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
   input: {
     height: 50,

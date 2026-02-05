@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { childAPI, feedbackAPI } from '../../services/api';
+import { childAPI, reportAPI } from '../../services/api';
 
 const QuarterlyReportsScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -15,18 +15,29 @@ const QuarterlyReportsScreen = ({ navigation }) => {
     loadChildren();
   }, []);
 
+  // Load reports when selected child changes
+  useEffect(() => {
+    if (selectedChild) {
+      loadReports(selectedChild._id);
+    }
+  }, [selectedChild]);
+
   const loadChildren = async () => {
     try {
       setLoading(true);
+      console.log('Loading parent children for quarterly reports');
       const response = await childAPI.getChildren();
+      console.log('Children response:', response);
+      
       if (response.success) {
         setChildren(response.data);
         if (response.data.length > 0) {
           setSelectedChild(response.data[0]);
-          loadReports(response.data[0]._id);
+          // Reports will be loaded by useEffect
         }
       }
     } catch (error) {
+      console.error('Error loading children:', error);
       Alert.alert('Error', 'Failed to load children');
     } finally {
       setLoading(false);
@@ -36,49 +47,29 @@ const QuarterlyReportsScreen = ({ navigation }) => {
   const loadReports = async (childId) => {
     try {
       setLoading(true);
+      console.log('Loading quarterly reports for child:', childId);
       
-      // Fetch feedback records for the child
-      const response = await feedbackAPI.getFeedbackByChild(childId);
+      // Fetch reports from backend API
+      const response = await reportAPI.getReportsByChild(childId);
+      console.log('Reports response:', response);
       
-      if (response.success && response.data && response.data.feedback) {
-        // Group feedback by quarter and create report data
-        const feedbackData = response.data.feedback;
-        
-        // Group feedback by quarter
-        const quarterlyData = feedbackData.reduce((acc, feedback) => {
-          const date = new Date(feedback.date);
-          const year = date.getFullYear();
-          const quarter = Math.ceil(date.getMonth() / 3);
-          const quarterKey = `Q${quarter} ${year}`;
-          
-          if (!acc[quarterKey]) {
-            acc[quarterKey] = {
-              id: quarterKey,
-              quarter: quarterKey,
-              period: getQuarterPeriod(quarter, year),
-              date: date.toISOString().split('T')[0],
-              status: 'completed',
-              goalsAchieved: 0,
-              totalGoals: 0,
-              feedbackRecords: []
-            };
-          }
-          
-          acc[quarterKey].feedbackRecords.push(feedback);
-          
-          // Count achievements and challenges as goals
-          acc[quarterKey].totalGoals += (feedback.achievements?.length || 0) + (feedback.challenges?.length || 0);
-          acc[quarterKey].goalsAchieved += feedback.achievements?.length || 0;
-          
-          return acc;
-        }, {});
-        
-        // Convert to array and sort by date
-        const reports = Object.values(quarterlyData)
-          .map(({ feedbackRecords, ...report }) => report)
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-        setReports(reports);
+      if (response.success && Array.isArray(response.data)) {
+        // Map backend data to frontend format
+        const mappedReports = response.data.map(report => ({
+          id: report._id,
+          quarter: report.period,
+          period: report.period,
+          date: new Date(report.submittedDate).toISOString().split('T')[0],
+          status: report.status,
+          therapistName: report.therapistId ? `${report.therapistId.name}` : 'Unknown',
+          progressSummary: report.progressSummary,
+          goalsAchieved: report.goalsAchieved,
+          areasForImprovement: report.areasForImprovement,
+          recommendations: report.recommendations,
+          nextSteps: report.nextSteps
+        }));
+        setReports(mappedReports);
+        console.log('Loaded', mappedReports.length, 'reports for child');
       } else {
         setReports([]);
       }
@@ -90,21 +81,10 @@ const QuarterlyReportsScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
-  
-  // Helper function to get quarter period
-  const getQuarterPeriod = (quarter, year) => {
-    switch(quarter) {
-      case 1: return `Jan-Mar ${year}`;
-      case 2: return `Apr-Jun ${year}`;
-      case 3: return `Jul-Sep ${year}`;
-      case 4: return `Oct-Dec ${year}`;
-      default: return `Q${quarter} ${year}`;
-    }
-  };
 
   const handleChildSelect = (child) => {
     setSelectedChild(child);
-    loadReports(child._id);
+    // Reports will be loaded by useEffect
   };
 
   const handleViewReport = (report) => {

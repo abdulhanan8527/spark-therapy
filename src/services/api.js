@@ -315,15 +315,25 @@ export const childAPI = {
       };
       
       // Handle dateOfBirth carefully
-      if (childData.dateOfBirth && childData.dateOfBirth.trim() !== '') {
-        // Validate it's a proper date string
-        const dateStr = childData.dateOfBirth.trim();
-        // Check if it matches YYYY-MM-DD format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (dateRegex.test(dateStr)) {
-          cleanData.dateOfBirth = dateStr;
-        } else {
-          throw new Error('Invalid date format. Please use YYYY-MM-DD format.');
+      if (childData.dateOfBirth) {
+        let dateStr = childData.dateOfBirth;
+        
+        // If it's already an ISO string, extract just the date part
+        if (typeof dateStr === 'string' && dateStr.includes('T')) {
+          dateStr = dateStr.split('T')[0];
+        }
+        
+        // Trim and validate
+        dateStr = dateStr.trim();
+        
+        if (dateStr !== '') {
+          // Check if it matches YYYY-MM-DD format
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          if (dateRegex.test(dateStr)) {
+            cleanData.dateOfBirth = dateStr;
+          } else {
+            throw new Error('Invalid date format. Please use YYYY-MM-DD format.');
+          }
         }
       }
       
@@ -504,6 +514,16 @@ export const notificationAPI = {
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to delete notification');
+    }
+  },
+
+  // Get broadcast notification history (admin only)
+  getBroadcastHistory: async () => {
+    try {
+      const response = await apiClient.get('/notifications/broadcast/history');
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch broadcast history');
     }
   }
 };
@@ -987,6 +1007,16 @@ export const sessionAPI = {
 
 // Feedback API functions
 export const feedbackAPI = {
+  // Get all feedback (admin)
+  getAllFeedback: async () => {
+    try {
+      const response = await apiClient.get('/feedback');
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch all feedback');
+    }
+  },
+
   getFeedbackByChild: async (childId, params = {}) => {
     try {
       const response = await apiClient.get(`/feedback/child/${childId}`, { params });
@@ -1210,7 +1240,28 @@ export const videoAPI = {
   // Create video
   createVideo: async (videoData) => {
     try {
-      const response = await apiClient.post('/videos', videoData);
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Add video file
+      if (videoData.videoFile) {
+        formData.append('video', videoData.videoFile);
+      }
+      
+      // Add other fields
+      formData.append('childId', videoData.childId);
+      formData.append('title', videoData.title);
+      if (videoData.description) {
+        formData.append('description', videoData.description);
+      }
+      formData.append('weekNumber', videoData.weekNumber);
+      formData.append('year', videoData.year);
+      
+      const response = await apiClient.post('/videos', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to create video');
@@ -1247,6 +1298,80 @@ export const adminAPI = {
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to fetch dashboard statistics');
+    }
+  }
+};
+
+// Quarterly Reports API
+export const reportAPI = {
+  // Create a quarterly report (therapist)
+  createReport: async (reportData) => {
+    try {
+      const response = await apiClient.post('/reports', reportData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to create quarterly report');
+    }
+  },
+
+  // Get reports by therapist
+  getReportsByTherapist: async (therapistId) => {
+    try {
+      const endpoint = therapistId ? `/reports/therapist/${therapistId}` : '/reports/therapist';
+      const response = await apiClient.get(endpoint);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch therapist reports');
+    }
+  },
+
+  // Get reports by child (parent can view their child's reports)
+  getReportsByChild: async (childId) => {
+    try {
+      const response = await apiClient.get(`/reports/child/${childId}`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch child reports');
+    }
+  },
+
+  // Get single report by ID
+  getReportById: async (reportId) => {
+    try {
+      const response = await apiClient.get(`/reports/${reportId}`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch report');
+    }
+  },
+
+  // Update a report (therapist)
+  updateReport: async (reportId, reportData) => {
+    try {
+      const response = await apiClient.put(`/reports/${reportId}`, reportData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to update report');
+    }
+  },
+
+  // Delete a report (therapist)
+  deleteReport: async (reportId) => {
+    try {
+      const response = await apiClient.delete(`/reports/${reportId}`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to delete report');
+    }
+  },
+
+  // Update report status (admin)
+  updateReportStatus: async (reportId, status) => {
+    try {
+      const response = await apiClient.patch(`/reports/${reportId}/status`, { status });
+      return response.data;
+    } catch (error) {
+      handleApiError(error, 'Failed to update report status');
     }
   }
 };

@@ -55,7 +55,9 @@ const getInvoiceById = async (req, res) => {
     // Parents can only view their own invoices
     if (req.user.role === 'parent') {
       const invoice = await invoiceService.getInvoiceById(id);
-      if (invoice.parentId.toString() !== req.user._id.toString()) {
+      // After populate, parentId is an object with _id property
+      const parentIdString = invoice.parentId._id ? invoice.parentId._id.toString() : invoice.parentId.toString();
+      if (parentIdString !== req.user._id.toString()) {
         return errorResponse(res, 'Access denied. Invoice does not belong to you.', 403);
       }
       return successResponse(res, invoice, 'Invoice retrieved successfully');
@@ -163,8 +165,12 @@ const getInvoicePDF = async (req, res) => {
     const invoice = await invoiceService.getInvoiceById(id);
     
     // Check access permissions
-    if (req.user.role === 'parent' && invoice.parentId.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 'Access denied. Invoice does not belong to you.', 403);
+    if (req.user.role === 'parent') {
+      // After populate, parentId is an object with _id property
+      const parentIdString = invoice.parentId._id ? invoice.parentId._id.toString() : invoice.parentId.toString();
+      if (parentIdString !== req.user._id.toString()) {
+        return errorResponse(res, 'Access denied. Invoice does not belong to you.', 403);
+      }
     }
     
     // Generate PDF

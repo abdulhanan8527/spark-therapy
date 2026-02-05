@@ -4,6 +4,34 @@ const Child = require('../models/Child');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { isValidObjectId } = require('../utils/validation');
 
+// @desc    Get all feedback (admin only)
+// @route   GET /api/feedback
+// @access  Private (Admin)
+const getAllFeedback = async (req, res) => {
+  try {
+    const { page = 1, limit = 100 } = req.query;
+
+    const feedback = await Feedback.find()
+      .populate('childId', 'firstName lastName')
+      .populate('parentId', 'firstName lastName email')
+      .populate('therapistId', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Feedback.countDocuments();
+
+    return successResponse(res, {
+      feedback,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page
+    }, 'All feedback retrieved successfully');
+  } catch (error) {
+    console.error('Get all feedback error:', error);
+    return errorResponse(res, error.message);
+  }
+};
+
 // @desc    Get all feedback for a child
 // @route   GET /api/feedback/child/:childId
 // @access  Private (Parent, Therapist, Admin)
@@ -185,8 +213,13 @@ const updateFeedback = async (req, res) => {
       return errorResponse(res, 'Not authorized to update this feedback', 403);
     }
 
-    const { mood, activities, achievements, challenges, recommendations, notes } = req.body;
+    const { mood, activities, achievements, challenges, recommendations, notes, status } = req.body;
 
+    // Allow admins to update status
+    if (status && req.user.role === 'admin') {
+      feedback.status = status;
+    }
+    
     feedback.mood = mood || feedback.mood;
     feedback.activities = activities || feedback.activities;
     feedback.achievements = achievements || feedback.achievements;
@@ -238,6 +271,7 @@ const deleteFeedback = async (req, res) => {
 };
 
 module.exports = {
+  getAllFeedback,
   getFeedbackByChild,
   getFeedbackById,
   createFeedback,

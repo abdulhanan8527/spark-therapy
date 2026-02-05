@@ -20,7 +20,7 @@ const createLeaveRequest = async (req, res) => {
     };
 
     const leaveRequest = await leaveService.createLeaveRequest(leaveData);
-    successResponse(res, 'Leave request submitted successfully', leaveRequest, 201);
+    successResponse(res, leaveRequest, 'Leave request submitted successfully', 201);
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -42,7 +42,7 @@ const getAllLeaveRequests = async (req, res) => {
     const options = { page, limit, sortBy, sortOrder };
     
     const result = await leaveService.getAllLeaveRequests(filters, options);
-    successResponse(res, 'Leave requests retrieved successfully', result);
+    successResponse(res, result, 'Leave requests retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -63,13 +63,13 @@ const getLeaveRequestById = async (req, res) => {
       if (leaveRequest.therapistId.toString() !== req.user._id.toString()) {
         return errorResponse(res, 'Access denied. Leave request does not belong to you.', 403);
       }
-      return successResponse(res, 'Leave request retrieved successfully', leaveRequest);
+      return successResponse(res, leaveRequest, 'Leave request retrieved successfully');
     }
     
     // Admins can view any leave request
     if (req.user.role === 'admin') {
       const leaveRequest = await leaveService.getLeaveRequestById(id);
-      return successResponse(res, 'Leave request retrieved successfully', leaveRequest);
+      return successResponse(res, leaveRequest, 'Leave request retrieved successfully');
     }
     
     return errorResponse(res, 'Access denied.', 403);
@@ -92,7 +92,7 @@ const updateLeaveRequest = async (req, res) => {
 
     const { id } = req.params;
     const leaveRequest = await leaveService.updateLeaveRequest(id, req.body);
-    successResponse(res, 'Leave request updated successfully', leaveRequest);
+    successResponse(res, leaveRequest, 'Leave request updated successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -120,13 +120,13 @@ const deleteLeaveRequest = async (req, res) => {
       }
       
       const result = await leaveService.deleteLeaveRequest(id);
-      return successResponse(res, 'Leave request deleted successfully', result);
+      return successResponse(res, result, 'Leave request deleted successfully');
     }
     
     // Admins can delete any leave request
     if (req.user.role === 'admin') {
       const result = await leaveService.deleteLeaveRequest(id);
-      return successResponse(res, 'Leave request deleted successfully', result);
+      return successResponse(res, result, 'Leave request deleted successfully');
     }
     
     return errorResponse(res, 'Access denied.', 403);
@@ -151,7 +151,7 @@ const getLeaveRequestsByTherapistId = async (req, res) => {
     
     // Admins can view any therapist's leave requests
     const leaveRequests = await leaveService.getLeaveRequestsByTherapistId(therapistId);
-    successResponse(res, 'Therapist leave requests retrieved successfully', leaveRequests);
+    successResponse(res, leaveRequests, 'Therapist leave requests retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }
@@ -170,7 +170,7 @@ const getPendingLeaveRequests = async (req, res) => {
     }
 
     const leaveRequests = await leaveService.getPendingLeaveRequests();
-    successResponse(res, 'Pending leave requests retrieved successfully', leaveRequests);
+    successResponse(res, leaveRequests, 'Pending leave requests retrieved successfully');
   } catch (error) {
     errorResponse(res, error.message, 400);
   }

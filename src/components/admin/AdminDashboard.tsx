@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, A
 import { Card } from '../shared/Card';
 import { StatusBadge } from '../shared/StatusBadge';
 import { adminAPI } from '../../services/api';
-import { AlertTriangle, CheckCircle, DollarSign, Users, Baby, GraduationCap, FileText, TrendingUp, TrendingDown, LogOut } from '../../components/SimpleIcons';
+import { AlertTriangle, CheckCircle, DollarSign, Users, Baby, GraduationCap, FileText, TrendingUp, TrendingDown, LogOut, Bell, MessageSquare, User, Calendar, CreditCard } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import NavigationService from '../../utils/NavigationService';
+import { useNavigation } from '@react-navigation/native';
 
 // Define TypeScript interface for dashboard stats
 interface DashboardStats {
@@ -15,6 +16,8 @@ interface DashboardStats {
   totalInvoices: number;
   overdueInvoices: number;
   unpaidInvoices: number;
+  overdueAmount: number;  // Actual amount for overdue invoices
+  unpaidAmount: number;   // Actual amount for unpaid invoices
   totalRevenue: number;
   activeComplaints: number;
   totalFeedback: number;
@@ -383,10 +386,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
   },
+  // Quick Action Styles
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 12,
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionText: {
+    flex: 1,
+  },
+  quickActionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  quickActionSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+  },
 });
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -591,7 +626,7 @@ export default function AdminDashboard() {
                   <Text style={styles.statSubtitle}>{stats.overdueInvoices} invoices</Text>
                 </View>
               </View>
-              <Text style={[styles.statValue, styles.redStatValue] as any}>${(stats.overdueInvoices * 450).toLocaleString()}</Text>
+              <Text style={[styles.statValue, styles.redStatValue] as any}>${(stats.overdueAmount || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.statRow}>
               <View style={styles.statInfo}>
@@ -603,7 +638,7 @@ export default function AdminDashboard() {
                   <Text style={styles.statSubtitle}>{stats.unpaidInvoices} invoices</Text>
                 </View>
               </View>
-              <Text style={[styles.statValue, styles.yellowStatValue] as any}>${(stats.unpaidInvoices * 300).toLocaleString()}</Text>
+              <Text style={[styles.statValue, styles.yellowStatValue] as any}>${(stats.unpaidAmount || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.statRow}>
               <View style={styles.statInfo}>
@@ -779,6 +814,117 @@ export default function AdminDashboard() {
                 <Text style={styles.alertTime}>{stats.upcomingSessions} upcoming</Text>
               </View>
             </View>
+          </View>
+        </Card>
+      </View>
+
+      {/* Quick Actions Section */}
+      <View style={[styles.statsGrid, { paddingHorizontal: 32, marginBottom: 32, marginTop: 32 }] as any}>
+        <Card style={[styles.statCard, { minWidth: 300 }] as any}>
+          <Text style={styles.statCardTitle}>Quick Actions</Text>
+          <View style={{ gap: 12 }}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('Complaints')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#fee2e2' }] as any}>
+                <MessageSquare size={20} color="#DC2626" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Manage Complaints</Text>
+                <Text style={styles.quickActionSubtitle}>View and respond to complaints</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('FeeManagement')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }] as any}>
+                <DollarSign size={20} color="#22C55E" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Fee Management</Text>
+                <Text style={styles.quickActionSubtitle}>Manage fees and payments</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('InvoiceManagement')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#e0e7ff' }] as any}>
+                <CreditCard size={20} color="#6366f1" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Invoice Management</Text>
+                <Text style={styles.quickActionSubtitle}>Generate and manage invoices</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        <Card style={[styles.statCard, { minWidth: 300 }] as any}>
+          <Text style={styles.statCardTitle}>Administration</Text>
+          <View style={{ gap: 12 }}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('LeaveRequests')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#fef9c3' }] as any}>
+                <Calendar size={20} color="#D97706" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Leave Requests</Text>
+                <Text style={styles.quickActionSubtitle}>Approve or reject leave requests</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('BroadcastNotifications')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }] as any}>
+                <Bell size={20} color="#2563EB" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Broadcast Notifications</Text>
+                <Text style={styles.quickActionSubtitle}>Send notifications to users</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('TherapistDeactivation')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#f3e8ff' }] as any}>
+                <User size={20} color="#8b5cf6" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Therapist Management</Text>
+                <Text style={styles.quickActionSubtitle}>Manage therapist accounts</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => (navigation as any).navigate('Feedback')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#fee2e2' }] as any}>
+                <MessageSquare size={20} color="#DC2626" />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Feedback Management</Text>
+                <Text style={styles.quickActionSubtitle}>View and manage feedback</Text>
+              </View>
+              <FileText size={20} color="#94a3b8" />
+            </TouchableOpacity>
           </View>
         </Card>
       </View>

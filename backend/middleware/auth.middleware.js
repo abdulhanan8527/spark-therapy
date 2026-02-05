@@ -12,9 +12,16 @@ const protect = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
+    // Get token from header
+    token = req.headers.authorization.split(' ')[1];
+  }
+  // Also check for token in query parameter (for PDF downloads from browser)
+  else if (req.query.token) {
+    token = req.query.token;
+  }
+  
+  if (token) {
     try {
-      // Get token from header
-      token = req.headers.authorization.split(' ')[1];
 
       // Verify token with enhanced security
       const decoded = jwt.verify(token, authConfig.jwtSecret, {

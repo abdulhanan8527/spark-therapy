@@ -94,12 +94,15 @@ const programSchemas = {
 // Notification validation schemas
 const notificationSchemas = {
   create: Joi.object({
-    recipientId: Joi.string().required(),
+    recipientId: Joi.string().optional(),
+    recipientType: Joi.string().valid('all', 'parents', 'therapists', 'both').optional(),
     title: Joi.string().min(1).max(100).required(),
     message: Joi.string().min(1).max(500).required(),
     type: Joi.string().valid('info', 'warning', 'success', 'error', 'broadcast').default('info'),
-    priority: Joi.string().valid('low', 'normal', 'high', 'urgent').default('normal')
-  })
+    priority: Joi.string().valid('low', 'normal', 'high', 'urgent').default('normal'),
+    isBroadcast: Joi.boolean().optional(),
+    scheduledFor: Joi.date().optional()
+  }).or('recipientId', 'recipientType') // At least one must be present
 };
 
 // Invoice validation schemas

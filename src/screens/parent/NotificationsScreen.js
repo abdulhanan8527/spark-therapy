@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Bell, MessageSquare, Video, FileText, Calendar, AlertCircle, CheckCircle, XCircle, Clock } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationAPI } from '../../services/api';
@@ -17,9 +18,13 @@ const NotificationsScreen = () => {
     generalAnnouncements: true,
   });
 
-  useEffect(() => {
-    loadNotifications();
-  }, []);
+  // Reload notifications when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Parent notifications screen focused - reloading notifications');
+      loadNotifications();
+    }, [])
+  );
 
   const loadNotifications = async () => {
     try {
@@ -85,7 +90,7 @@ const NotificationsScreen = () => {
       const response = await notificationAPI.markAsRead(id);
       if (response.success) {
         setNotifications(notifications.map(notification => 
-          notification._id === id ? { ...notification, read: true } : notification
+          notification._id === id ? { ...notification, isRead: true } : notification
         ));
       }
     } catch (error) {
@@ -95,12 +100,12 @@ const NotificationsScreen = () => {
 
   const markAllAsRead = async () => {
     try {
-      const unreadNotifications = notifications.filter(n => !n.read);
+      const unreadNotifications = notifications.filter(n => !n.isRead);
       for (const notification of unreadNotifications) {
         await notificationAPI.markAsRead(notification._id);
       }
       setNotifications(notifications.map(notification => 
-        ({ ...notification, read: true })
+        ({ ...notification, isRead: true })
       ));
       Alert.alert('Success', 'All notifications marked as read');
     } catch (error) {
@@ -109,7 +114,7 @@ const NotificationsScreen = () => {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   if (loading) {
     return (
@@ -175,7 +180,7 @@ const NotificationsScreen = () => {
               <View style={styles.notificationContent}>
                 <View style={styles.notificationHeader}>
                   <Text style={styles.notificationTitle}>{notification.title}</Text>
-                  {!notification.read && <View style={styles.unreadDot} />}
+                  {!notification.isRead && <View style={styles.unreadDot} />}
                 </View>
                 
                 <Text style={styles.notificationMessage} numberOfLines={2}>

@@ -23,22 +23,46 @@ const BroadcastNotificationsScreen = () => {
   
   const loadNotifications = async () => {
     try {
+      console.log('=== LOADING BROADCAST NOTIFICATIONS ===');
+      console.log('User:', user);
       setLoading(true);
-      const response = await notificationAPI.getNotifications();
+      
+      // Use the broadcast history endpoint instead of regular notifications
+      const response = await notificationAPI.getBroadcastHistory();
+      console.log('Broadcast Notifications API response:', response);
+      
       if (response.success && Array.isArray(response.data)) {
+        console.log(`Successfully loaded ${response.data.length} broadcast notifications`);
         setNotifications(response.data);
+      } else if (response.success && response.data && Array.isArray(response.data.notifications)) {
+        // Handle nested structure
+        console.log(`Successfully loaded ${response.data.notifications.length} broadcast notifications (nested)`);
+        setNotifications(response.data.notifications);
       } else {
+        console.warn('Unexpected response format for broadcast notifications:', response);
         setNotifications([]);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error('Error loading broadcast notifications:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
       Alert.alert('Error', 'Failed to load notifications');
       setNotifications([]);
     } finally {
       setLoading(false);
+      console.log('=== BROADCAST NOTIFICATIONS LOAD COMPLETE ===');
     }
   };
   const handleSendNotification = async () => {
+    console.log('=== HANDLE SEND NOTIFICATION ===');
+    console.log('Title:', notificationTitle);
+    console.log('Message:', notificationMessage);
+    console.log('Target Groups:', targetGroups);
+    console.log('Scheduled Time:', scheduledTime);
+    
     if (!notificationTitle.trim() || !notificationMessage.trim()) {
       Alert.alert('Error', 'Please enter both title and message');
       return;
@@ -60,10 +84,15 @@ const BroadcastNotificationsScreen = () => {
         isBroadcast: true
       };
       
+      console.log('Sending notification with data:', notificationData);
+      
       const response = await notificationAPI.createNotification(notificationData);
+      console.log('Create notification response:', response);
+      
       if (response.success) {
+        console.log('Notification sent successfully');
         // Reload notifications to get the new one
-        loadNotifications();
+        await loadNotifications();
         Alert.alert('Success', 'Notification sent successfully!');
         
         // Reset form
@@ -80,8 +109,14 @@ const BroadcastNotificationsScreen = () => {
       }
     } catch (error) {
       console.error('Error sending notification:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
       Alert.alert('Error', error.message || 'Failed to send notification');
     }
+    console.log('=== SEND NOTIFICATION COMPLETE ===');
   };
 
   const toggleGroup = (group) => {
@@ -174,8 +209,8 @@ const BroadcastNotificationsScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Notification History ({notifications.length})</Text>
         <View style={styles.notificationsList}>
-          {notifications.map((notification) => (
-            <View key={notification.id} style={styles.notificationCard}>
+          {notifications.map((notification, index) => (
+            <View key={notification._id || notification.id || index} style={styles.notificationCard}>
               <View style={styles.notificationHeader}>
                 <Text style={styles.notificationTitle}>{notification.title}</Text>
                 <View style={styles.notificationStatus}>
@@ -189,12 +224,18 @@ const BroadcastNotificationsScreen = () => {
               <View style={styles.notificationDetails}>
                 <View style={styles.detailRow}>
                   <Ionicons name="people" size={16} color="#8E8E93" />
-                  <Text style={styles.detailText}>{notification.recipients}</Text>
+                  <Text style={styles.detailText}>
+                    {notification.recipientCount ? `Sent to ${notification.recipientCount} users` : (notification.recipientType || 'All users')}
+                  </Text>
                 </View>
                 
                 <View style={styles.detailRow}>
                   <Ionicons name="calendar" size={16} color="#8E8E93" />
-                  <Text style={styles.detailText}>{notification.date} at {notification.time}</Text>
+                  <Text style={styles.detailText}>
+                    {notification.createdAt 
+                      ? new Date(notification.createdAt).toLocaleDateString() + ' at ' + new Date(notification.createdAt).toLocaleTimeString()
+                      : (notification.date && notification.time ? `${notification.date} at ${notification.time}` : 'Just now')}
+                  </Text>
                 </View>
               </View>
             </View>

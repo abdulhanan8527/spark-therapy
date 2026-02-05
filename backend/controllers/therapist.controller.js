@@ -13,8 +13,14 @@ const getAllTherapists = async (req, res) => {
       return errorResponse(res, 'Access denied. Admin only.', 403);
     }
 
-    const therapists = await therapistService.getAllTherapists();
-    successResponse(res, therapists, 'Therapists retrieved successfully');
+    const result = await therapistService.getAllTherapists();
+    
+    // Service returns {success, data, message} - extract the data
+    if (result.success) {
+      successResponse(res, result.data, 'Therapists retrieved successfully');
+    } else {
+      errorResponse(res, result.message || 'Failed to retrieve therapists', 400);
+    }
   } catch (error) {
     errorResponse(res, error.message, 400);
   }

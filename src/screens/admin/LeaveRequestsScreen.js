@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { CheckCircle } from '@expo/vector-icons';
-import { Calendar, Clock, XCircle, User, Send } from '../../components/SimpleIcons';
+import { Calendar, Clock, XCircle, User, Send, CheckCircle } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI } from '../../services/api';
 
@@ -62,7 +61,7 @@ const LeaveRequestsScreen = () => {
 
   // Helper function to normalize API response to an array
   const normalizeApiResponse = (response) => {
-    // Ultimate safeguard: handle all possible response formats
+    console.log('Normalizing API response:', response);
     
     // If it's already an array, return it
     if (Array.isArray(response)) {
@@ -75,14 +74,26 @@ const LeaveRequestsScreen = () => {
       return [];
     }
     
-    // If it's an object with a data property that's an array
+    // If it's an object with a data property that's an array (fixed backend format)
     if (typeof response === 'object' && Array.isArray(response.data)) {
+      console.log('Found data array:', response.data);
       return response.data;
+    }
+    
+    // If it's an object with nested data.leaveRequests
+    if (typeof response === 'object' && response.data && Array.isArray(response.data.leaveRequests)) {
+      console.log('Found nested leaveRequests:', response.data.leaveRequests);
+      return response.data.leaveRequests;
     }
     
     // If it's an object with a leaveRequests property that's an array
     if (typeof response === 'object' && Array.isArray(response.leaveRequests)) {
       return response.leaveRequests;
+    }
+    
+    // If it's an object with a data property that's an array
+    if (typeof response === 'object' && Array.isArray(response.data)) {
+      return response.data;
     }
     
     // If it's an object with a success property and data property that's an array
@@ -118,38 +129,18 @@ const LeaveRequestsScreen = () => {
 
   const handleApprove = async (requestId) => {
     try {
-      // Optimistically update the UI
-      setLeaveRequestsSafely(prevRequests => {
-        if (!Array.isArray(prevRequests)) {
-          console.error('prevRequests is not an array:', prevRequests);
-          return [];
-        }
-        return prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'approved' }
-            : request
-        );
-      });
+      console.log('Approving leave request:', requestId);
       
       // Update the request on the server
       const response = await leaveAPI.updateLeaveRequest(requestId, { status: 'approved' });
-      if (!response.success) {
-        // Rollback if API call fails
-        setLeaveRequestsSafely(prevRequests => {
-          if (!Array.isArray(prevRequests)) {
-            console.error('prevRequests is not an array during rollback:', prevRequests);
-            return [];
-          }
-          return prevRequests.map(request => 
-            request.id === requestId 
-              ? { ...request, status: 'pending' }  // rollback to previous status
-              : request
-          );
-        });
-        throw new Error(response.message || 'Failed to approve request');
-      }
       
-      Alert.alert('Success', 'Leave request approved!');
+      if (response.success) {
+        Alert.alert('Success', 'Leave request approved successfully');
+        // Refresh the list
+        fetchLeaveRequests();
+      } else {
+        Alert.alert('Error', response.message || 'Failed to approve leave request');
+      }
     } catch (error) {
       console.error('Error approving leave request:', error);
       Alert.alert('Error', 'Failed to approve leave request');
@@ -163,18 +154,7 @@ const LeaveRequestsScreen = () => {
     }
 
     try {
-      // Optimistically update the UI
-      setLeaveRequestsSafely(prevRequests => {
-        if (!Array.isArray(prevRequests)) {
-          console.error('prevRequests is not an array:', prevRequests);
-          return [];
-        }
-        return prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'rejected', rejectionReason: responseText }
-            : request
-        );
-      });
+      console.log('Rejecting leave request:', requestId);
       
       // Update the request on the server
       const response = await leaveAPI.updateLeaveRequest(requestId, { 
@@ -182,29 +162,15 @@ const LeaveRequestsScreen = () => {
         rejectionReason: responseText 
       });
       
-      if (!response.success) {
-        // Rollback if API call fails
-        setLeaveRequestsSafely(prevRequests => {
-          if (!Array.isArray(prevRequests)) {
-            console.error('prevRequests is not an array during rollback:', prevRequests);
-            return [];
-          }
-          return prevRequests.map(request => {
-            if (request.id === requestId) {
-              // rollback to previous state
-              const updatedRequest = { ...request };
-              delete updatedRequest.rejectionReason; // Remove the temp rejection reason
-              return updatedRequest;
-            }
-            return request;
-          });
-        });
-        throw new Error(response.message || 'Failed to reject request');
+      if (response.success) {
+        Alert.alert('Success', 'Leave request rejected successfully');
+        setResponseText('');
+        setSelectedRequest(null);
+        // Refresh the list
+        fetchLeaveRequests();
+      } else {
+        Alert.alert('Error', response.message || 'Failed to reject leave request');
       }
-      
-      Alert.alert('Success', 'Leave request rejected!');
-      setResponseText('');
-      setSelectedRequest(null);
     } catch (error) {
       console.error('Error rejecting leave request:', error);
       Alert.alert('Error', 'Failed to reject leave request');
@@ -316,15 +282,17 @@ const LeaveRequestsScreen = () => {
         <Text style={styles.sectionTitle}>Pending Requests ({finalSafeLeaveRequests.filter(r => r.status === 'pending').length})</Text>
         <View style={styles.requestsList}>
           {finalSafeLeaveRequests.map((request) => (
-            <View key={request.id} style={styles.requestCard}>
+            <View key={request._id} style={styles.requestCard}>
               <View style={styles.requestHeader}>
                 <View style={styles.requestInfo}>
                   <View style={styles.avatar}>
                     <User size={24} color="#fff" />
                   </View>
                   <View>
-                    <Text style={styles.therapistName}>{request.therapistName}</Text>
-                    <Text style={styles.requestType}>{request.type}</Text>
+                    <Text style={styles.therapistName}>
+                      {request.therapistId?.name || 'Unknown Therapist'}
+                    </Text>
+                    <Text style={styles.requestType}>{request.leaveType || 'Unknown Type'}</Text>
                   </View>
                 </View>
                 
@@ -335,8 +303,12 @@ const LeaveRequestsScreen = () => {
               </View>
               
               <View style={styles.requestDetails}>
-                <Text style={styles.detailText}>Dates: {request.startDate} to {request.endDate}</Text>
-                <Text style={styles.detailText}>Submitted: {request.submittedDate}</Text>
+                <Text style={styles.detailText}>
+                  Dates: {new Date(request.startDate).toLocaleDateString()} to {new Date(request.endDate).toLocaleDateString()}
+                </Text>
+                <Text style={styles.detailText}>
+                  Submitted: {new Date(request.createdAt).toLocaleDateString()}
+                </Text>
                 <Text style={styles.reasonLabel}>Reason:</Text>
                 <Text style={styles.reasonText}>{request.reason}</Text>
               </View>
@@ -345,7 +317,7 @@ const LeaveRequestsScreen = () => {
                 <View style={styles.actionButtons}>
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.approveButton]} 
-                    onPress={() => handleApprove(request.id)}
+                    onPress={() => handleApprove(request._id)}
                   >
                     <CheckCircle size={16} color="#fff" />
                     <Text style={styles.actionText}>Approve</Text>
@@ -353,7 +325,7 @@ const LeaveRequestsScreen = () => {
                   
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.rejectButton]} 
-                    onPress={() => setSelectedRequest(selectedRequest === request.id ? null : request.id)}
+                    onPress={() => setSelectedRequest(selectedRequest === request._id ? null : request._id)}
                   >
                     <XCircle size={16} color="#fff" />
                     <Text style={styles.actionText}>Reject</Text>
@@ -361,7 +333,7 @@ const LeaveRequestsScreen = () => {
                 </View>
               )}
               
-              {selectedRequest === request.id && request.status === 'pending' && (
+              {selectedRequest === request._id && request.status === 'pending' && (
                 <View style={styles.rejectionSection}>
                   <Text style={styles.rejectionLabel}>Reason for Rejection</Text>
                   <TextInput
@@ -373,8 +345,8 @@ const LeaveRequestsScreen = () => {
                     numberOfLines={3}
                   />
                   <TouchableOpacity 
-                    style={styles.sendRejectionButton} 
-                    onPress={() => handleReject(request.id)}
+                    style={styles.sendRejectionButton}
+                    onPress={() => handleReject(request._id)}
                   >
                     <Send size={16} color="#fff" />
                     <Text style={styles.sendRejectionText}>Send Rejection</Text>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal, Linking, Platform } from 'react-native';
 import { DollarSign, Download, Eye, CheckCircle, Clock, AlertCircle, Printer } from '../../components/SimpleIcons';
 import { getPDFComponents } from '../../utils/PdfUtils';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
@@ -112,49 +114,44 @@ const InvoicesScreen = () => {
           Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
         }
       } else {
-        // Native platforms
-        Alert.alert(
-          'Download Invoice',
-          'Would you like to download this invoice as a PDF?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Download',
-              onPress: async () => {
-                try {
-                  // Show loading indicator
-                  Alert.alert('Downloading...', 'Please wait while we prepare your invoice PDF');
-                  
-                  // Get the PDF from the backend
-                  const response = await invoiceAPI.downloadInvoicePDF(invoiceId);
-                  
-                  if (response && response.data && pdfComponents.RNFetchBlob) {
-                    // Convert the response data to base64 for PDF saving
-                    const base64 = response.data.toString('base64');
-                    
-                    // Determine the file system path based on platform
-                    let path;
-                    if (Platform.OS === 'android') {
-                      path = `${pdfComponents.RNFetchBlob.fs.dirs.DownloadDir}/invoice_${invoiceId}.pdf`;
-                    } else {
-                      path = `${pdfComponents.RNFetchBlob.fs.dirs.DocumentDir}/invoice_${invoiceId}.pdf`;
-                    }
-                    
-                    // Write the PDF to device storage
-                    await pdfComponents.RNFetchBlob.fs.writeFile(path, base64, 'base64');
-                    
-                    Alert.alert('Success', `Invoice PDF saved to ${path}`);
-                  } else {
-                    Alert.alert('Error', 'Failed to download invoice PDF');
-                  }
-                } catch (error) {
-                  console.error('Download error:', error);
-                  Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
-                }
-              }
+        // Native platforms - use expo-file-system and expo-sharing
+        try {
+          Alert.alert('Downloading...', 'Please wait while we prepare your invoice PDF');
+          
+          // Get auth token
+          const token = await AsyncStorage.getItem('userToken');
+          const baseUrl = apiClient?.defaults?.baseURL || 'http://localhost:5001/api';
+          const downloadUrl = `${baseUrl}/invoices/${invoiceId}/pdf?token=${token}`;
+          
+          // Download file using expo-file-system
+          const fileUri = FileSystem.documentDirectory + `invoice_${invoiceId}.pdf`;
+          
+          const downloadResult = await FileSystem.downloadAsync(
+            downloadUrl,
+            fileUri
+          );
+          
+          if (downloadResult.status === 200) {
+            // Check if sharing is available
+            const isAvailable = await Sharing.isAvailableAsync();
+            
+            if (isAvailable) {
+              // Share the file (this allows user to save/open it)
+              await Sharing.shareAsync(downloadResult.uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: 'Save Invoice PDF',
+                UTI: 'com.adobe.pdf'
+              });
+            } else {
+              Alert.alert('Success', `Invoice saved to ${fileUri}`);
             }
-          ]
-        );
+          } else {
+            Alert.alert('Error', 'Failed to download invoice PDF');
+          }
+        } catch (error) {
+          console.error('Download error:', error);
+          Alert.alert('Error', 'Failed to download invoice PDF: ' + error.message);
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
@@ -221,7 +218,11 @@ const InvoicesScreen = () => {
   };
 
   const filteredInvoices = selectedChild
-    ? (Array.isArray(invoices) ? invoices.filter(invoice => invoice.childId === selectedChild || invoice.child?._id === selectedChild) : [])
+    ? (Array.isArray(invoices) ? invoices.filter(invoice => {
+        // Handle both populated and non-populated childId
+        const invoiceChildId = invoice.childId?._id || invoice.childId || invoice.child?._id;
+        return invoiceChildId === selectedChild || invoiceChildId?.toString() === selectedChild?.toString();
+      }) : [])
     : (Array.isArray(invoices) ? invoices : []);
 
   const totalDue = Array.isArray(filteredInvoices) ? filteredInvoices.reduce((sum, invoice) => sum + (invoice.status !== 'paid' ? invoice.amount : 0), 0) : 0;

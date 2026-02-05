@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Modal, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { programAPI } from '../../services/api';
+import { programAPI, therapistAPI } from '../../services/api';
 
 // Import ABLLS-R Skills from the types file
 // Note: We'll need to adapt the types for React Native
@@ -10,7 +10,16 @@ import { ABLLS_SKILLS, DOMAIN_COLORS_MAP } from '../../components/therapist/Prog
 
 export default function ProgramBuilderScreen({ route }) {
   const { user } = useAuth();
-  const { childId, childName } = route.params || {};
+  const { childId: routeChildId, childName: routeChildName } = route.params || {};
+  
+  // State for child selection
+  const [children, setChildren] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
+  const [loadingChildren, setLoadingChildren] = useState(true);
+  
+  // Use selected child or route params
+  const childId = selectedChild?._id || routeChildId;
+  const childName = selectedChild ? `${selectedChild.firstName} ${selectedChild.lastName}` : routeChildName;
   
   // State for programs
   const [programs, setPrograms] = useState([]);
@@ -35,7 +44,12 @@ export default function ProgramBuilderScreen({ route }) {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [newTarget, setNewTarget] = useState('');
 
-  // Load programs from backend on component mount - only when childId is valid
+  // Load therapist's children on mount
+  useEffect(() => {
+    loadChildren();
+  }, []);
+
+  // Load programs when child is selected
   useEffect(() => {
     if (childId && typeof childId === 'string' && childId.length === 24) {
       loadPrograms();
@@ -44,6 +58,31 @@ export default function ProgramBuilderScreen({ route }) {
       setLoading(false);
     }
   }, [childId]);
+
+  const loadChildren = async () => {
+    try {
+      setLoadingChildren(true);
+      console.log('Loading therapist children for user:', user._id);
+      const response = await therapistAPI.getChildren(user._id);
+      console.log('Children response:', response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        setChildren(response.data);
+        // Auto-select first child if coming from route or only one child
+        if (routeChildId) {
+          const child = response.data.find(c => c._id === routeChildId);
+          if (child) setSelectedChild(child);
+        } else if (response.data.length === 1) {
+          setSelectedChild(response.data[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading children:', error);
+      Alert.alert('Error', 'Failed to load children');
+    } finally {
+      setLoadingChildren(false);
+    }
+  };
 
   const loadPrograms = async () => {
     if (!childId || typeof childId !== 'string' || childId.length !== 24) {
@@ -477,36 +516,81 @@ export default function ProgramBuilderScreen({ route }) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Search and Filters */}
-        <View style={styles.card}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={20} color="#888" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={handleAutocomplete}
-              placeholder="Search programs..."
-            />
+        {/* Child Selection */}
+        {loadingChildren ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading children...</Text>
           </View>
-          
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.abllsButton}
-              onPress={() => setShowABLLSForm(!showABLLSForm)}
-            >
-              <Ionicons name="book-outline" size={16} color="#fff" />
-              <Text style={styles.abllsButtonText}>ABLLS-R</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.customButton}
-              onPress={() => setShowCustomForm(!showCustomForm)}
-            >
-              <Ionicons name="add-outline" size={16} color="#fff" />
-              <Text style={styles.customButtonText}>Custom</Text>
-            </TouchableOpacity>
+        ) : (
+          <View style={styles.childSelectorContainer}>
+            <Text style={styles.childSelectorLabel}>Select Child:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childScrollView}>
+              {children.map((child) => (
+                <TouchableOpacity
+                  key={child._id}
+                  style={[
+                    styles.childButton,
+                    selectedChild?._id === child._id && styles.selectedChildButton
+                  ]}
+                  onPress={() => setSelectedChild(child)}
+                >
+                  <Text style={[
+                    styles.childButtonText,
+                    selectedChild?._id === child._id && styles.selectedChildButtonText
+                  ]}>
+                    {child.firstName} {child.lastName}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {children.length === 0 && (
+              <Text style={styles.noChildrenText}>No children assigned to you</Text>
+            )}
           </View>
-        </View>
+        )}
+
+        {/* Show message if no child selected */}
+        {!childId && !loadingChildren && (
+          <View style={styles.noChildSelectedCard}>
+            <Ionicons name="person-outline" size={48} color="#ccc" />
+            <Text style={styles.noChildSelectedText}>Please select a child to manage programs</Text>
+          </View>
+        )}
+
+        {/* Only show program management if child is selected */}
+        {childId && (
+          <>
+            {/* Search and Filters */}
+            <View style={styles.card}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search-outline" size={20} color="#888" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChangeText={handleAutocomplete}
+                  placeholder="Search programs..."
+                />
+              </View>
+              
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={styles.abllsButton}
+                  onPress={() => setShowABLLSForm(!showABLLSForm)}
+                >
+                  <Ionicons name="book-outline" size={16} color="#fff" />
+                  <Text style={styles.abllsButtonText}>ABLLS-R</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.customButton}
+                  onPress={() => setShowCustomForm(!showCustomForm)}
+                >
+                  <Ionicons name="add-outline" size={16} color="#fff" />
+                  <Text style={styles.customButtonText}>Custom</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
         {/* ABLLS-R Quick Add Form */}
         {showABLLSForm && (
@@ -685,6 +769,8 @@ export default function ProgramBuilderScreen({ route }) {
             </View>
           </View>
         )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -713,6 +799,87 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  childSelectorContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  childSelectorLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  childScrollView: {
+    flexDirection: 'row',
+  },
+  childButton: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedChildButton: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
+  },
+  childButtonText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  selectedChildButtonText: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  noChildrenText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  noChildSelectedCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  noChildSelectedText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 16,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#fff',

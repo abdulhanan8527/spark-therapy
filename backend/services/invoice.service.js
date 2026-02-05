@@ -9,10 +9,44 @@ const Child = require('../models/Child');
  */
 const createInvoice = async (invoiceData) => {
   try {
+    console.log('=== INVOICE SERVICE: CREATE INVOICE ===');
+    console.log('Input invoice data:', invoiceData);
+    
+    // Get child to extract parentId
+    if (!invoiceData.childId) {
+      throw new Error('childId is required');
+    }
+    
+    const child = await Child.findById(invoiceData.childId);
+    if (!child) {
+      throw new Error('Child not found');
+    }
+    
+    console.log('Found child:', child._id, 'with parent:', child.parentId);
+    
+    // Generate invoice number if not provided
+    if (!invoiceData.invoiceNumber) {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      invoiceData.invoiceNumber = `INV-${timestamp}-${random}`;
+    }
+    
+    // Set parentId from child
+    invoiceData.parentId = child.parentId;
+    
+    console.log('Creating invoice with data:', {
+      ...invoiceData,
+      invoiceNumber: invoiceData.invoiceNumber,
+      parentId: invoiceData.parentId
+    });
+    
     const invoice = new Invoice(invoiceData);
     await invoice.save();
+    
+    console.log('Invoice created successfully:', invoice._id);
     return invoice;
   } catch (error) {
+    console.error('Create invoice error:', error);
     throw new Error(`Failed to create invoice: ${error.message}`);
   }
 };

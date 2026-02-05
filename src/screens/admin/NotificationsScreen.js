@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationAPI } from '../../services/api';
@@ -9,20 +10,85 @@ const AdminNotificationsScreen = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     
+    // Reload notifications when screen comes into focus
+    useFocusEffect(
+      useCallback(() => {
+        console.log('Admin notifications screen focused - reloading');
+        loadNotifications();
+      }, [])
+    );
+    
     const loadNotifications = async () => {
       try {
+        console.log('=== LOADING NOTIFICATIONS ===');
+        console.log('User:', user);
         setLoading(true);
-        const response = await notificationAPI.getNotifications();
-        if (response.success && Array.isArray(response.data)) {
-          setNotifications(response.data);
+        
+        // For admins, merge regular notifications with broadcast history
+        if (user.role === 'admin') {
+          console.log('Loading admin notifications + broadcast history');
+          
+          // Load both regular notifications and broadcast history in parallel
+          const [notificationsRes, broadcastRes] = await Promise.all([
+            notificationAPI.getNotifications(),
+            notificationAPI.getBroadcastHistory()
+          ]);
+          
+          console.log('Regular notifications response:', notificationsRes);
+          console.log('Broadcast history response:', broadcastRes);
+          
+          let regularNotifs = [];
+          let broadcastNotifs = [];
+          
+          // Extract regular notifications
+          if (notificationsRes.success && Array.isArray(notificationsRes.data)) {
+            regularNotifs = notificationsRes.data;
+          } else if (notificationsRes.success && notificationsRes.data && Array.isArray(notificationsRes.data.notifications)) {
+            regularNotifs = notificationsRes.data.notifications;
+          }
+          
+          // Extract broadcast notifications
+          if (broadcastRes.success && Array.isArray(broadcastRes.data)) {
+            broadcastNotifs = broadcastRes.data.map(b => ({
+              ...b,
+              isBroadcast: true,
+              type: 'broadcast'
+            }));
+          }
+          
+          // Merge and sort by date
+          const allNotifications = [...regularNotifs, ...broadcastNotifs]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          
+          console.log(`Loaded ${regularNotifs.length} regular + ${broadcastNotifs.length} broadcast = ${allNotifications.length} total`);
+          setNotifications(allNotifications);
         } else {
-          setNotifications([]);
+          // For non-admins, just load regular notifications
+          const response = await notificationAPI.getNotifications();
+          console.log('Notifications API response:', response);
+          
+          if (response.success && Array.isArray(response.data)) {
+            console.log(`Successfully loaded ${response.data.length} notifications`);
+            setNotifications(response.data);
+          } else if (response.success && response.data && Array.isArray(response.data.notifications)) {
+            console.log(`Successfully loaded ${response.data.notifications.length} notifications (nested)`);
+            setNotifications(response.data.notifications);
+          } else {
+            console.warn('Unexpected response format:', response);
+            setNotifications([]);
+          }
         }
       } catch (error) {
         console.error('Error loading notifications:', error);
+        console.error('Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status
+        });
         setNotifications([]);
       } finally {
         setLoading(false);
+        console.log('=== NOTIFICATIONS LOAD COMPLETE ===');
       }
     };
     
@@ -47,7 +113,7 @@ const AdminNotificationsScreen = () => {
       try {
         const response = await notificationAPI.markAsRead(id);
         if (response.success) {
-          setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
+          setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
         }
       } catch (error) {
         console.error('Error marking notification as read:', error);
@@ -57,6 +123,12 @@ const AdminNotificationsScreen = () => {
     return (
         <ScrollView style={styles.container}>
             <Text style={styles.header}>Notifications</Text>
+
+            {loading && (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#666' }}>Loading notifications...</Text>
+                </View>
+            )}
 
             <View style={styles.list}>
                 {notifications.map((notification) => (
@@ -71,13 +143,21 @@ const AdminNotificationsScreen = () => {
                         <View style={styles.content}>
                             <View style={styles.titleRow}>
                                 <Text style={styles.title}>{notification.title}</Text>
-                                {!notification.read && <View style={styles.unreadDot} />}
+                                {!notification.isRead && <View style={styles.unreadDot} />}
                             </View>
                             <Text style={styles.message}>{notification.message}</Text>
                             <Text style={styles.time}>{notification.createdAt ? new Date(notification.createdAt).toLocaleDateString() : notification.time || 'Just now'}</Text>
                         </View>
                     </TouchableOpacity>
                 ))}
+                
+                {!loading && notifications.length === 0 && (
+                    <View style={{ padding: 30, alignItems: 'center' }}>
+                        <Ionicons name="notifications-outline" size={48} color="#ccc" />
+                        <Text style={{ color: '#999', fontSize: 16, marginTop: 10 }}>No notifications yet</Text>
+                        <Text style={{ color: '#ccc', fontSize: 14, marginTop: 5 }}>You'll see notifications here when you receive them</Text>
+                    </View>
+                )}
             </View>
         </ScrollView>
     );

@@ -11,6 +11,7 @@ const {
   rejectVideo
 } = require('../controllers/video.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
+const { upload } = require('../config/cloudinary');
 
 // All routes are protected
 router.use(protect);
@@ -19,7 +20,7 @@ router.use(protect);
 router.get('/', getVideosByTherapist);
 router.get('/child/:childId', getVideosByChild);
 router.get('/:id', getVideoById);
-router.post('/', createVideo);
+router.post('/', upload.single('video'), createVideo);
 router.put('/:id', updateVideo);
 router.delete('/:id', deleteVideo);
 

@@ -1,58 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { notificationAPI } from '../../services/api';
 
 const NotificationsScreen = () => {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState([
-    // Mock data for demonstration
-    {
-      id: 1,
-      type: 'feedback',
-      title: 'Feedback Reminder',
-      message: 'Please submit daily feedback for Emma Johnson\'s session today.',
-      time: '2 hours ago',
-      read: false,
-      priority: 'high',
-    },
-    {
-      id: 2,
-      type: 'video',
-      title: 'Video Upload Due',
-      message: 'Weekly video for Liam Chen is due by tomorrow.',
-      time: '5 hours ago',
-      read: true,
-      priority: 'medium',
-    },
-    {
-      id: 3,
-      type: 'report',
-      title: 'Quarterly Report',
-      message: 'Q4 report for Emma Johnson needs to be submitted by Dec 31.',
-      time: '1 day ago',
-      read: false,
-      priority: 'high',
-    },
-    {
-      id: 4,
-      type: 'schedule',
-      title: 'Session Rescheduled',
-      message: 'Emma Johnson\'s session on Dec 20 has been rescheduled to Dec 22.',
-      time: '1 day ago',
-      read: true,
-      priority: 'low',
-    },
-    {
-      id: 5,
-      type: 'admin',
-      title: 'Admin Announcement',
-      message: 'Therapist meeting scheduled for Dec 25 at 2:00 PM.',
-      time: '2 days ago',
-      read: false,
-      priority: 'medium',
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [notificationSettings, setNotificationSettings] = useState({
     dailyFeedback: true,
     weeklyVideo: true,
@@ -61,6 +16,45 @@ const NotificationsScreen = () => {
     adminAnnouncements: true,
     parentMessages: true,
   });
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      console.log('=== LOADING THERAPIST NOTIFICATIONS ===');
+      console.log('User:', user);
+      setLoading(true);
+      
+      const response = await notificationAPI.getNotifications();
+      console.log('Notifications API response:', response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        console.log(`Successfully loaded ${response.data.length} notifications`);
+        setNotifications(response.data);
+      } else if (response.success && response.data && Array.isArray(response.data.notifications)) {
+        // Handle nested structure
+        console.log(`Successfully loaded ${response.data.notifications.length} notifications (nested)`);
+        setNotifications(response.data.notifications);
+      } else {
+        console.warn('Unexpected response format for notifications:', response);
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      Alert.alert('Error', 'Failed to load notifications');
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+      console.log('=== NOTIFICATIONS LOAD COMPLETE ===');
+    }
+  };
 
   const getIcon = (type) => {
     switch (type) {
@@ -116,19 +110,66 @@ const NotificationsScreen = () => {
     });
   };
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
+  const markAsRead = async (id) => {
+    try {
+      const response = await notificationAPI.markAsRead(id);
+      if (response.success) {
+        // Update local state
+        setNotifications(notifications.map(notification => 
+          notification._id === id ? { ...notification, isRead: true } : notification
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => 
-      ({ ...notification, read: true })
-    ));
+  const markAllAsRead = async () => {
+    try {
+      const response = await notificationAPI.markAllAsRead();
+      if (response.success) {
+        // Update local state
+        setNotifications(notifications.map(notification => 
+          ({ ...notification, isRead: true })
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      Alert.alert('Error', 'Failed to mark all notifications as read');
+    }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const formatTime = (dateString) => {
+    if (!dateString) return 'Just now';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead && n.read !== true).length;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#34C759" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading notifications...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -176,12 +217,12 @@ const NotificationsScreen = () => {
         <View style={styles.notificationsList}>
           {notifications.map((notification) => (
             <TouchableOpacity 
-              key={notification.id} 
+              key={notification._id || notification.id} 
               style={[
                 styles.notificationCard, 
-                !notification.read && styles.unreadNotification
+                !notification.isRead && !notification.read && styles.unreadNotification
               ]}
-              onPress={() => markAsRead(notification.id)}
+              onPress={() => markAsRead(notification._id || notification.id)}
             >
               <View style={styles.notificationHeader}>
                 <View style={[styles.iconContainer, { backgroundColor: getBackgroundColor(notification.type) }]}>
@@ -198,8 +239,8 @@ const NotificationsScreen = () => {
                   </Text>
                   
                   <View style={styles.notificationFooter}>
-                    <Text style={styles.notificationTime}>{notification.time}</Text>
-                    {!notification.read && <View style={styles.unreadDot} />}
+                    <Text style={styles.notificationTime}>{formatTime(notification.createdAt)}</Text>
+                    {!notification.isRead && !notification.read && <View style={styles.unreadDot} />}
                   </View>
                 </View>
               </View>

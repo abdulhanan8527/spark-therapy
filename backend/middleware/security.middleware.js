@@ -71,20 +71,18 @@ const ipBlocker = (req, res, next) => {
 
 // Suspicious activity detection
 const suspiciousActivityDetector = (req, res, next) => {
+  // Only check body and query parameters for suspicious patterns
+  // Don't check headers or URLs which may contain legitimate patterns
   const suspiciousPatterns = [
     /<script/i,
     /javascript:/i,
     /on\w+\s*=/i,
     /eval\s*\(/i,
-    /document\.cookie/i,
-    /xhr/i,
-    /fetch\s*\(/i
+    /document\.cookie/i
   ];
   
+  // Only check body and query - not headers or URL
   const requestData = JSON.stringify({
-    url: req.url,
-    method: req.method,
-    headers: req.headers,
     body: req.body,
     query: req.query
   });

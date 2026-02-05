@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { childAPI, feedbackAPI } from '../../services/api';
+import { childAPI, videoAPI } from '../../services/api';
+import { Video } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const WeeklyVideosScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -9,24 +13,37 @@ const WeeklyVideosScreen = ({ navigation }) => {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const [videos, setVideos] = useState([]);
+  const [playingVideo, setPlayingVideo] = useState(null);
+  const [videoRef, setVideoRef] = useState(null);
 
   // Load children when component mounts
   useEffect(() => {
     loadChildren();
   }, []);
 
+  // Load videos when selected child changes
+  useEffect(() => {
+    if (selectedChild) {
+      loadVideos(selectedChild._id);
+    }
+  }, [selectedChild]);
+
   const loadChildren = async () => {
     try {
       setLoading(true);
+      console.log('Loading parent children for videos');
       const response = await childAPI.getChildren();
+      console.log('Children response:', response);
+      
       if (response.success) {
         setChildren(response.data);
         if (response.data.length > 0) {
           setSelectedChild(response.data[0]);
-          loadVideos(response.data[0]._id);
+          // Videos will be loaded by useEffect
         }
       }
     } catch (error) {
+      console.error('Error loading children:', error);
       Alert.alert('Error', 'Failed to load children');
     } finally {
       setLoading(false);
@@ -36,38 +53,15 @@ const WeeklyVideosScreen = ({ navigation }) => {
   const loadVideos = async (childId) => {
     try {
       setLoading(true);
+      console.log('Loading videos for child:', childId);
       
-      // Fetch feedback records for the child
-      const response = await feedbackAPI.getFeedbackByChild(childId);
+      // Fetch videos from backend API
+      const response = await videoAPI.getVideosByChild(childId);
+      console.log('Videos response:', response);
       
-      if (response.success && response.data && response.data.feedback) {
-        // Create video-like records from feedback data
-        const feedbackData = response.data.feedback;
-        
-        // Group feedback by week and create video data
-        const videos = feedbackData.map((feedback, index) => {
-          const date = new Date(feedback.date);
-          const weekStart = new Date(date);
-          weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
-          
-          // Calculate if the feedback is more than 30 days old (expired)
-          const now = new Date();
-          const diffTime = Math.abs(now - date);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          return {
-            id: feedback._id || `video-${index}`,
-            title: `Week of ${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`,
-            date: date.toISOString().split('T')[0],
-            thumbnail: 'feedback',
-            status: diffDays > 30 ? 'expired' : 'available',
-            feedbackData: feedback
-          };
-        });
-        
-        setVideos(videos);
+      if (response.success && Array.isArray(response.data)) {
+        setVideos(response.data);
+        console.log('Loaded', response.data.length, 'videos');
       } else {
         setVideos([]);
       }
@@ -82,23 +76,72 @@ const WeeklyVideosScreen = ({ navigation }) => {
 
   const handleChildSelect = (child) => {
     setSelectedChild(child);
-    loadVideos(child._id);
+    // Videos will be loaded by useEffect
   };
 
   const handlePlayVideo = (video) => {
-    if (video.status === 'expired') {
-      Alert.alert('Video Expired', 'This video is no longer available.');
-      return;
+    if (Platform.OS === 'web' && video.videoUrl) {
+      window.open(video.videoUrl, '_blank');
+    } else if (video.videoUrl) {
+      // On mobile, try to open with default video player
+      Linking.openURL(video.videoUrl).catch(err => {
+        console.error('Cannot open video:', err);
+        Alert.alert('Error', 'Cannot open video: ' + err.message);
+      });
+    } else {
+      Alert.alert('Error', 'Video URL not available');
     }
-    
-    // In a real app, this would play the actual video
-    // For now, we'll show feedback details in an alert
-    const feedback = video.feedbackData;
-    Alert.alert(
-      video.title,
-      `Date: ${video.date}\nMood: ${feedback.mood}\nActivities: ${feedback.activities?.join(', ') || 'N/A'}\nAchievements: ${feedback.achievements?.join(', ') || 'N/A'}`
-    );
   };
+
+  const handleDownloadVideo = async (video) => {
+    try {
+      if (!video.videoUrl) {
+        Alert.alert('Error', 'Video URL not available');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        // For web, open in new tab
+        window.open(video.videoUrl, '_blank');
+      } else {
+        // For mobile, download to device
+        Alert.alert('Downloading', 'Video download started...');
+        
+        const fileUri = FileSystem.documentDirectory + `video_${video._id}.mp4`;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          video.videoUrl,
+          fileUri
+        );
+
+        const result = await downloadResumable.downloadAsync();
+        if (result) {
+          const isAvailable = await Sharing.isAvailableAsync();
+          
+          if (isAvailable) {
+            await Sharing.shareAsync(result.uri, {
+              mimeType: 'video/mp4',
+              dialogTitle: 'Save Video',
+              UTI: 'public.mpeg-4'
+            });
+          } else {
+            Alert.alert('Success', `Video saved to ${fileUri}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading video:', error);
+      Alert.alert('Error', 'Failed to download video: ' + error.message);
+    }
+  };
+
+  if (loading && children.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading videos...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -139,34 +182,41 @@ const WeeklyVideosScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Available Videos</Text>
           {videos.length > 0 ? (
             videos.map((video) => (
-              <TouchableOpacity
-                key={video.id}
-                style={[
-                  styles.videoCard,
-                  video.status === 'expired' && styles.expiredVideo
-                ]}
-                onPress={() => handlePlayVideo(video)}
-                disabled={video.status === 'expired'}
+              <View
+                key={video._id}
+                style={styles.videoCard}
               >
                 <View style={styles.videoThumbnail}>
-                  <Text style={styles.thumbnailText}>🎥</Text>
+                  <Ionicons name="videocam" size={40} color="#007AFF" />
                 </View>
                 <View style={styles.videoInfo}>
-                  <Text style={[
-                    styles.videoTitle,
-                    video.status === 'expired' && styles.expiredText
-                  ]}>
+                  <Text style={styles.videoTitle}>
                     {video.title}
                   </Text>
-                  <Text style={styles.videoDate}>{video.date}</Text>
-                  <Text style={[
-                    styles.videoStatus,
-                    video.status === 'available' ? styles.availableStatus : styles.expiredStatus
-                  ]}>
-                    {video.status === 'available' ? 'Available' : 'Expired'}
+                  <Text style={styles.videoTherapist}>
+                    By: {video.therapistId?.name || 'Unknown'}
                   </Text>
+                  <Text style={styles.videoDate}>
+                    {new Date(video.createdAt).toLocaleDateString()}
+                  </Text>
+                  <View style={styles.videoActions}>
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={() => handlePlayVideo(video)}
+                    >
+                      <Ionicons name="play-circle" size={20} color="#007AFF" />
+                      <Text style={styles.actionText}>Play</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={() => handleDownloadVideo(video)}
+                    >
+                      <Ionicons name="download" size={20} color="#34C759" />
+                      <Text style={styles.actionText}>Download</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))
           ) : (
             <Text style={styles.noVideosText}>No videos available</Text>

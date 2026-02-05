@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, RefreshControl, ActivityIndicator } from 'react-native';
-import { CheckCircle, Clock, AlertCircle, Play } from '@expo/vector-icons';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, RefreshControl, ActivityIndicator, Platform, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Video, Camera, Upload } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { videoAPI, therapistAPI } from '../../services/api';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const WeeklyVideoScreen = () => {
   const { user } = useAuth();
@@ -70,30 +74,124 @@ const WeeklyVideoScreen = () => {
     }
   };
 
-  const handleRecordVideo = () => {
-    // In a real app, this would open the camera to record a video
-    Alert.alert(
-      'Record Video',
-      'In a real application, this would open the camera to record a video for the parent.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Simulate Recording', 
-          onPress: () => {
-            setRecordedVideo({
-              uri: 'https://example.com/video.mp4',
-              duration: 180,
-            });
-            Alert.alert('Success', 'Video recorded successfully!');
-          }
-        }
-      ]
-    );
+  const handleRecordVideo = async () => {
+    if (!selectedChild) {
+      Alert.alert('Error', 'Please select a child first');
+      return;
+    }
+
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to record videos');
+        return;
+      }
+
+      // Launch camera to record video
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: false,
+        quality: 0.8,
+        videoMaxDuration: 300, // 5 minutes max
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const videoAsset = result.assets[0];
+        console.log('Video recorded:', videoAsset);
+        setRecordedVideo({
+          uri: videoAsset.uri,
+          duration: videoAsset.duration || 0,
+          type: 'video/mp4',
+          name: `video_${Date.now()}.mp4`
+        });
+        
+        // Auto-upload after recording
+        await uploadVideoToBackend({
+          uri: videoAsset.uri,
+          duration: videoAsset.duration || 0,
+          type: 'video/mp4',
+          name: `video_${Date.now()}.mp4`
+        });
+      }
+    } catch (error) {
+      console.error('Error recording video:', error);
+      Alert.alert('Error', 'Failed to record video: ' + error.message);
+    }
   };
 
   const handleUploadVideo = async () => {
-    if (!selectedChild || !recordedVideo) {
-      Alert.alert('Error', 'Please select a child and record a video first');
+    if (!selectedChild) {
+      Alert.alert('Error', 'Please select a child first');
+      return;
+    }
+
+    try {
+      // For web and file picker
+      if (Platform.OS === 'web') {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'video/*',
+          copyToCacheDirectory: true
+        });
+
+        if (result.type === 'success' || !result.canceled) {
+          const videoFile = result.assets ? result.assets[0] : result;
+          console.log('Video selected:', videoFile);
+          setRecordedVideo({
+            uri: videoFile.uri,
+            type: videoFile.mimeType || 'video/mp4',
+            name: videoFile.name,
+            size: videoFile.size
+          });
+          
+          await uploadVideoToBackend({
+            uri: videoFile.uri,
+            type: videoFile.mimeType || 'video/mp4',
+            name: videoFile.name,
+            size: videoFile.size
+          });
+        }
+      } else {
+        // For mobile - use image picker for video library
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Media library permission is required');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['videos'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const videoAsset = result.assets[0];
+          console.log('Video selected from library:', videoAsset);
+          setRecordedVideo({
+            uri: videoAsset.uri,
+            duration: videoAsset.duration || 0,
+            type: 'video/mp4',
+            name: `video_${Date.now()}.mp4`
+          });
+          
+          await uploadVideoToBackend({
+            uri: videoAsset.uri,
+            duration: videoAsset.duration || 0,
+            type: 'video/mp4',
+            name: `video_${Date.now()}.mp4`
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error picking video:', error);
+      Alert.alert('Error', 'Failed to pick video: ' + error.message);
+    }
+  };
+
+  const uploadVideoToBackend = async (videoFile) => {
+    if (!selectedChild) {
+      Alert.alert('Error', 'Please select a child first');
       return;
     }
     
@@ -104,24 +202,50 @@ const WeeklyVideoScreen = () => {
       return;
     }
     
-    // Prepare video data
-    const videoData = {
-      childId: selectedChildObj._id || selectedChildObj.id,
-      title: `Weekly Update - Week ${new Date().getWeek() || 'N/A'}`,
-      description: `Weekly update video for ${selectedChildObj.name || 'child'}`,
-      videoUrl: recordedVideo.uri,
-      weekNumber: new Date().getWeek(),
-      year: new Date().getFullYear()
-    };
-    
     try {
+      Alert.alert('Uploading', 'Uploading video... Please wait.');
+      
+      // Prepare video file for upload
+      let preparedFile;
+      
+      if (Platform.OS === 'web') {
+        // For web, convert blob to File object
+        const response = await fetch(videoFile.uri);
+        const blob = await response.blob();
+        preparedFile = new File([blob], 'video.mp4', { type: 'video/mp4' });
+      } else {
+        // For mobile, prepare file object with proper structure
+        preparedFile = {
+          uri: videoFile.uri,
+          type: 'video/mp4',
+          name: 'video.mp4'
+        };
+      }
+      
+      // Prepare video data
+      const videoData = {
+        videoFile: preparedFile,
+        childId: selectedChildObj._id || selectedChildObj.id,
+        title: `Weekly Update - Week ${new Date().getWeek() || Math.ceil((new Date().getDate()) / 7)}`,
+        description: `Weekly update video for ${selectedChildObj.firstName} ${selectedChildObj.lastName}`,
+        weekNumber: new Date().getWeek() || Math.ceil((new Date().getDate()) / 7),
+        year: new Date().getFullYear()
+      };
+      
+      console.log('Uploading video data:', { 
+        childId: videoData.childId, 
+        title: videoData.title,
+        weekNumber: videoData.weekNumber,
+        year: videoData.year
+      });
+      
       // Upload video to backend
       const response = await videoAPI.createVideo(videoData);
       if (response.success) {
         // Refresh the videos list
-        fetchChildrenAndVideos();
+        await fetchChildrenAndVideos();
         setRecordedVideo(null);
-        Alert.alert('Success', 'Video uploaded successfully! It will be reviewed and made available to parents.');
+        Alert.alert('Success', 'Video uploaded successfully! It will be available to parents.');
       } else {
         Alert.alert('Error', response.message || 'Failed to upload video');
       }
@@ -131,16 +255,97 @@ const WeeklyVideoScreen = () => {
     }
   };
 
+  const handleDeleteVideo = async (videoId) => {
+    Alert.alert(
+      'Delete Video',
+      'Are you sure you want to delete this video? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await videoAPI.deleteVideo(videoId);
+              if (response.success) {
+                Alert.alert('Success', 'Video deleted successfully');
+                await fetchChildrenAndVideos();
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete video');
+              }
+            } catch (error) {
+              console.error('Error deleting video:', error);
+              Alert.alert('Error', error.message || 'Failed to delete video');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handlePlayVideo = (videoUrl) => {
+    if (Platform.OS === 'web' && videoUrl) {
+      window.open(videoUrl, '_blank');
+    } else {
+      Alert.alert('Play Video', 'Video playback functionality - opening video');
+      // On mobile, could use expo-av Video component or Linking
+      if (videoUrl) {
+        Linking.openURL(videoUrl).catch(err => 
+          Alert.alert('Error', 'Cannot open video: ' + err.message)
+        );
+      }
+    }
+  };
+
+  const handleDownloadVideo = async (video) => {
+    try {
+      if (!video.videoUrl) {
+        Alert.alert('Error', 'Video URL not available');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        window.open(video.videoUrl, '_blank');
+      } else {
+        Alert.alert('Downloading', 'Video download started...');
+        const fileUri = FileSystem.documentDirectory + `video_${video._id}.mp4`;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          video.videoUrl,
+          fileUri
+        );
+        const result = await downloadResumable.downloadAsync();
+        if (result) {
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(result.uri, {
+              mimeType: 'video/mp4',
+              dialogTitle: 'Save Video',
+              UTI: 'public.mpeg-4'
+            });
+          } else {
+            Alert.alert('Success', `Video saved to ${fileUri}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading video:', error);
+      Alert.alert('Error', 'Failed to download video: ' + error.message);
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'approved':
-        return <CheckCircle size={16} color="#34C759" />;
+        return <Ionicons name="checkmark-circle" size={16} color="#34C759" />;
       case 'pending':
-        return <Clock size={16} color="#FF9500" />;
+        return <Ionicons name="time" size={16} color="#FF9500" />;
       case 'rejected':
-        return <AlertCircle size={16} color="#FF3B30" />;
+        return <Ionicons name="alert-circle" size={16} color="#FF3B30" />;
       default:
-        return <Clock size={16} color="#8E8E93" />;
+        return <Ionicons name="time" size={16} color="#8E8E93" />;
     }
   };
 
@@ -170,9 +375,9 @@ const WeeklyVideoScreen = () => {
     }
   };
 
-  const filteredVideos = selectedChild 
+  const filteredVideos = selectedChild && selectedChild !== 'all'
     ? (Array.isArray(uploadedVideos) ? uploadedVideos : []).filter(video => {
-        const childId = typeof video.child === 'object' ? video.child._id : video.childId;
+        const childId = video.childId?._id || video.childId;
         return childId === selectedChild;
       })
     : (Array.isArray(uploadedVideos) ? uploadedVideos : []);
@@ -206,6 +411,21 @@ const WeeklyVideoScreen = () => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Select Child</Text>
             <View style={styles.childSelector}>
+              <TouchableOpacity
+                key="all"
+                style={[
+                  styles.childButton,
+                  (!selectedChild || selectedChild === 'all') && styles.selectedChildButton
+                ]}
+                onPress={() => setSelectedChild('all')}
+              >
+                <Text style={[
+                  styles.childButtonText,
+                  (!selectedChild || selectedChild === 'all') && styles.selectedChildButtonText
+                ]}>
+                  All Children
+                </Text>
+              </TouchableOpacity>
               {(Array.isArray(children) ? children : []).map((child) => (
                 <TouchableOpacity
                   key={child._id}
@@ -219,7 +439,7 @@ const WeeklyVideoScreen = () => {
                     styles.childButtonText,
                     selectedChild === child._id && styles.selectedChildButtonText
                   ]}>
-                    {child.name}
+                    {child.firstName} {child.lastName}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -230,7 +450,7 @@ const WeeklyVideoScreen = () => {
           <View style={styles.recordingPreview}>
             {recordedVideo ? (
               <View style={styles.videoPreview}>
-                <Play size={40} color="#34C759" />
+                <Ionicons name="play-circle" size={40} color="#34C759" />
                 <Text style={styles.previewText}>Video Recorded</Text>
                 <Text style={styles.previewSubtext}>Duration: {recordedVideo.duration ? `${Math.floor(recordedVideo.duration / 60)}:${String(recordedVideo.duration % 60).padStart(2, '0')}` : '0:00'}</Text>
               </View>
@@ -251,9 +471,8 @@ const WeeklyVideoScreen = () => {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.uploadButton, !recordedVideo && styles.disabledButton]} 
+              style={styles.uploadButton} 
               onPress={handleUploadVideo}
-              disabled={!recordedVideo}
             >
               <Upload size={20} color="#fff" />
               <Text style={styles.buttonText}>Upload Video</Text>
@@ -268,30 +487,49 @@ const WeeklyVideoScreen = () => {
         <View style={styles.videosList}>
           {(Array.isArray(filteredVideos) ? filteredVideos : []).map((video) => (
             <View key={video._id} style={styles.videoCard}>
-              <View style={styles.videoThumbnail}>
+              <TouchableOpacity 
+                style={styles.videoThumbnail}
+                onPress={() => handlePlayVideo(video.videoUrl)}
+              >
                 <View style={styles.placeholderThumbnail}>
                   <Video size={30} color="#8E8E93" />
                 </View>
                 <View style={styles.playIconOverlay}>
-                  <Play size={20} color="#fff" />
+                  <Ionicons name="play" size={20} color="#fff" />
                 </View>
-              </View>
+              </TouchableOpacity>
               
               <View style={styles.videoInfo}>
                 <Text style={styles.videoTitle}>{video.title}</Text>
-                <Text style={styles.videoChild}>{typeof video.child === 'object' ? video.child.name : 'N/A'}</Text>
+                <Text style={styles.videoChild}>
+                  {video.childId?.firstName && video.childId?.lastName 
+                    ? `${video.childId.firstName} ${video.childId.lastName}` 
+                    : 'N/A'}
+                </Text>
                 <Text style={styles.videoDate}>{new Date(video.createdAt).toLocaleDateString()}</Text>
-                
-                <View style={styles.videoStats}>
-                  <Text style={styles.statText}>{video.views || 0} views</Text>
-                  <Text style={styles.statText}>•</Text>
-                  <Text style={styles.statText}>{video.likes || 0} likes</Text>
-                </View>
               </View>
               
-              <View style={[styles.statusBadge, getStatusStyle(video.status)]}>
-                {getStatusIcon(video.status)}
-                <Text style={styles.statusText}>{getStatusText(video.status)}</Text>
+              <View style={styles.videoActions}>
+                <TouchableOpacity 
+                  style={styles.playButton}
+                  onPress={() => handlePlayVideo(video.videoUrl)}
+                >
+                  <Ionicons name="play-circle" size={20} color="#007AFF" />
+                  <Text style={styles.actionButtonText}>Play</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.downloadButton}
+                  onPress={() => handleDownloadVideo(video)}
+                >
+                  <Ionicons name="download" size={20} color="#34C759" />
+                  <Text style={styles.actionButtonText}>Download</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.deleteButtonSmall}
+                  onPress={() => handleDeleteVideo(video._id)}
+                >
+                  <Ionicons name="trash" size={20} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -521,15 +759,38 @@ const styles = StyleSheet.create({
   videoDate: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
   },
-  videoStats: {
+  videoActions: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
     gap: 4,
   },
-  statText: {
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    gap: 4,
+  },
+  deleteButtonSmall: {
+    padding: 8,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+  },
+  actionButtonText: {
     fontSize: 12,
-    color: '#8E8E93',
+    fontWeight: '500',
   },
   statusBadge: {
     flexDirection: 'row',

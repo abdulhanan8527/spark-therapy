@@ -1,48 +1,81 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FileText, Upload, Clock } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
+import { therapistAPI, reportAPI } from '../../services/api';
 
 const QuarterlyReportScreen = () => {
   const { user } = useAuth();
   const [selectedChild, setSelectedChild] = useState(null);
+  const [children, setChildren] = useState([]);
+  const [loadingChildren, setLoadingChildren] = useState(true);
   const [reportPeriod, setReportPeriod] = useState('');
   const [progressSummary, setProgressSummary] = useState('');
   const [goalsAchieved, setGoalsAchieved] = useState('');
   const [areasForImprovement, setAreasForImprovement] = useState('');
   const [recommendations, setRecommendations] = useState('');
   const [nextSteps, setNextSteps] = useState('');
-  const [uploadedReports, setUploadedReports] = useState([
-    // Mock data for demonstration
-    {
-      id: 1,
-      child: 'Emma Johnson',
-      period: 'Q3 2025',
-      date: '2025-09-30',
-      status: 'approved',
-    },
-    {
-      id: 2,
-      child: 'Emma Johnson',
-      period: 'Q4 2025',
-      date: '2025-12-31',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      child: 'Liam Chen',
-      period: 'Q3 2025',
-      date: '2025-09-28',
-      status: 'approved',
-    },
-  ]);
+  const [uploadedReports, setUploadedReports] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const children = [
-    { id: 1, name: 'Emma Johnson' },
-    { id: 2, name: 'Liam Chen' },
-    { id: 3, name: 'Olivia Martinez' },
-  ];
+  useEffect(() => {
+    loadChildren();
+    loadReports();
+  }, []);
+
+  const loadChildren = async () => {
+    try {
+      setLoadingChildren(true);
+      console.log('Loading therapist children for quarterly reports');
+      const response = await therapistAPI.getChildren(user._id);
+      console.log('Children response:', response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        setChildren(response.data);
+      } else {
+        setChildren([]);
+      }
+    } catch (error) {
+      console.error('Error loading children:', error);
+      Alert.alert('Error', 'Failed to load children');
+      setChildren([]);
+    } finally {
+      setLoadingChildren(false);
+    }
+  };
+
+  const loadReports = async () => {
+    try {
+      console.log('Loading quarterly reports for therapist');
+      const response = await reportAPI.getReportsByTherapist();
+      console.log('Reports response:', response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        // Map backend data to frontend format
+        const mappedReports = response.data.map(report => ({
+          id: report._id,
+          childId: report.childId._id,
+          childName: `${report.childId.firstName} ${report.childId.lastName}`,
+          period: report.period,
+          date: new Date(report.submittedDate).toISOString().split('T')[0],
+          status: report.status,
+          progressSummary: report.progressSummary,
+          goalsAchieved: report.goalsAchieved,
+          areasForImprovement: report.areasForImprovement,
+          recommendations: report.recommendations,
+          nextSteps: report.nextSteps
+        }));
+        setUploadedReports(mappedReports);
+        console.log('Loaded', mappedReports.length, 'reports');
+      } else {
+        setUploadedReports([]);
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      setUploadedReports([]);
+    }
+  };
 
   const reportPeriods = [
     'Q1 2026',
@@ -51,42 +84,68 @@ const QuarterlyReportScreen = () => {
     'Q4 2026',
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedChild || !reportPeriod || !progressSummary) {
       Alert.alert('Error', 'Please select a child, report period, and provide a progress summary');
       return;
     }
 
-    // In a real app, this would be sent to the backend
-    const newReport = {
-      id: uploadedReports.length + 1,
-      child: children.find(c => c.id === selectedChild)?.name,
-      period: reportPeriod,
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending',
-    };
+    try {
+      setSubmitting(true);
+      console.log('Creating quarterly report:', {
+        childId: selectedChild._id,
+        period: reportPeriod,
+        progressSummary,
+        goalsAchieved,
+        areasForImprovement,
+        recommendations,
+        nextSteps
+      });
 
-    setUploadedReports([...uploadedReports, newReport]);
-    Alert.alert('Success', 'Quarterly report submitted successfully! It will be reviewed and made available to parents.');
-    
-    // Reset form
-    setSelectedChild(null);
-    setReportPeriod('');
-    setProgressSummary('');
-    setGoalsAchieved('');
-    setAreasForImprovement('');
-    setRecommendations('');
-    setNextSteps('');
+      // Call backend API to create report
+      const response = await reportAPI.createReport({
+        childId: selectedChild._id,
+        period: reportPeriod,
+        progressSummary,
+        goalsAchieved: goalsAchieved || '',
+        areasForImprovement: areasForImprovement || '',
+        recommendations: recommendations || '',
+        nextSteps: nextSteps || ''
+      });
+
+      if (response.success) {
+        Alert.alert('Success', 'Quarterly report submitted successfully! It will be reviewed and made available to parents.');
+        
+        // Reload reports from backend
+        await loadReports();
+        
+        // Reset form
+        setSelectedChild(null);
+        setReportPeriod('');
+        setProgressSummary('');
+        setGoalsAchieved('');
+        setAreasForImprovement('');
+        setRecommendations('');
+        setNextSteps('');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to submit quarterly report');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      Alert.alert('Error', error.message || 'Failed to submit quarterly report');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'approved':
         return <Ionicons name="checkmark-circle" size={16} color="#34C759" />;
+      case 'reviewed':
+        return <Ionicons name="eye" size={16} color="#007AFF" />;
       case 'pending':
         return <Ionicons name="time" size={16} color="#FF9500" />;
-      case 'rejected':
-        return <Ionicons name="alert-circle" size={16} color="#FF3B30" />;
       default:
         return <Ionicons name="time" size={16} color="#8E8E93" />;
     }
@@ -96,12 +155,12 @@ const QuarterlyReportScreen = () => {
     switch (status) {
       case 'approved':
         return 'Approved';
+      case 'reviewed':
+        return 'Reviewed';
       case 'pending':
         return 'Pending Review';
-      case 'rejected':
-        return 'Rejected';
       default:
-        return 'Unknown';
+        return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
     }
   };
 
@@ -109,18 +168,27 @@ const QuarterlyReportScreen = () => {
     switch (status) {
       case 'approved':
         return styles.approvedStatus;
+      case 'reviewed':
+        return styles.reviewedStatus;
       case 'pending':
         return styles.pendingStatus;
-      case 'rejected':
-        return styles.rejectedStatus;
       default:
         return styles.pendingStatus;
     }
   };
 
   const filteredReports = selectedChild 
-    ? uploadedReports.filter(report => report.child === children.find(c => c.id === selectedChild)?.name)
+    ? uploadedReports.filter(report => report.childId === selectedChild._id)
     : uploadedReports;
+
+  if (loadingChildren) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#34C759" />
+        <Text style={styles.loadingText}>Loading children...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -133,25 +201,29 @@ const QuarterlyReportScreen = () => {
           {/* Child Selection */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Select Child</Text>
-            <View style={styles.childSelector}>
-              {children.map((child) => (
-                <TouchableOpacity
-                  key={child.id}
-                  style={[
-                    styles.childButton,
-                    selectedChild === child.id && styles.selectedChildButton
-                  ]}
-                  onPress={() => setSelectedChild(child.id)}
-                >
-                  <Text style={[
-                    styles.childButtonText,
-                    selectedChild === child.id && styles.selectedChildButtonText
-                  ]}>
-                    {child.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {children.length === 0 ? (
+              <Text style={styles.noChildrenText}>No children assigned to you</Text>
+            ) : (
+              <View style={styles.childSelector}>
+                {children.map((child) => (
+                  <TouchableOpacity
+                    key={child._id}
+                    style={[
+                      styles.childButton,
+                      selectedChild?._id === child._id && styles.selectedChildButton
+                    ]}
+                    onPress={() => setSelectedChild(child)}
+                  >
+                    <Text style={[
+                      styles.childButtonText,
+                      selectedChild?._id === child._id && styles.selectedChildButtonText
+                    ]}>
+                      {child.firstName} {child.lastName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Report Period */}
@@ -243,9 +315,15 @@ const QuarterlyReportScreen = () => {
                 />
               </View>
 
-              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                <Upload size={20} color="#fff" />
-                <Text style={styles.submitButtonText}>Submit Report</Text>
+              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Upload size={20} color="#fff" />
+                    <Text style={styles.submitButtonText}>Submit Report</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </>
           )}
@@ -260,7 +338,7 @@ const QuarterlyReportScreen = () => {
             <View key={report.id} style={styles.reportCard}>
               <View style={styles.reportHeader}>
                 <View style={styles.reportInfo}>
-                  <Text style={styles.reportTitle}>{report.child}</Text>
+                  <Text style={styles.reportTitle}>{report.childName}</Text>
                   <Text style={styles.reportPeriod}>{report.period}</Text>
                 </View>
                 <View style={[styles.statusBadge, getStatusStyle(report.status)]}>
@@ -324,6 +402,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
     padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  noChildrenText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 16,
+    textAlign: 'center',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
   },
   header: {
     fontSize: 24,
@@ -471,8 +569,8 @@ const styles = StyleSheet.create({
   pendingStatus: {
     backgroundColor: '#fff3e0',
   },
-  rejectedStatus: {
-    backgroundColor: '#ffebee',
+  reviewedStatus: {
+    backgroundColor: '#e3f2fd',
   },
   statusText: {
     fontSize: 12,

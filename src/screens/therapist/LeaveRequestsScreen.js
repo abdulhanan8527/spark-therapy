@@ -22,12 +22,17 @@ const LeaveRequestsScreen = () => {
   const fetchLeaveRequests = async () => {
     try {
       setLoading(true);
+      console.log('=== FETCHING LEAVE REQUESTS ===');
       const res = await leaveAPI.getLeaveRequestsByTherapistId(user._id);
+      console.log('Leave requests API response:', res);
+      
       if (res.success) {
-        // Ensure res.data is an array
+        // The backend now returns data directly (fixed)
         const leaveRequestsData = Array.isArray(res.data) ? res.data : [];
+        console.log('Leave requests data:', leaveRequestsData);
         setLeaveRequests(leaveRequestsData);
       } else {
+        console.log('API returned success: false');
         setLeaveRequests([]);
       }
     } catch (error) {
@@ -43,8 +48,9 @@ const LeaveRequestsScreen = () => {
     { label: 'Vacation', value: 'vacation' },
     { label: 'Sick Leave', value: 'sick' },
     { label: 'Personal', value: 'personal' },
-    { label: 'Maternity', value: 'maternity' },
-    { label: 'Paternity', value: 'paternity' },
+    { label: 'Professional Development', value: 'professional-development' },
+    { label: 'Emergency', value: 'emergency' },
+    { label: 'Other', value: 'other' },
   ];
 
   const handleSubmit = async () => {
@@ -106,7 +112,11 @@ const LeaveRequestsScreen = () => {
 
   const getStatusText = (status) => {
     if (!status) return 'Unknown';
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    // Handle hyphenated values like 'professional-development'
+    return status
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   const getStatusStyle = (status) => {

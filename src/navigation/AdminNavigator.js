@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,19 +8,20 @@ import { useAuth } from '../contexts/AuthContext';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import TherapistManagementScreen from '../screens/admin/TherapistManagementScreen';
 import ChildManagementScreen from '../screens/admin/ChildManagementScreen';
-import ChildrenSection from '../components/admin/ChildrenSection';
-import FeedbackSection from '../components/admin/FeedbackSection';
 import ComplaintsScreen from '../screens/admin/ComplaintsScreen';
-import FeeManagementScreen from '../screens/admin/FeeManagementScreen';
-import TherapistDeactivationScreen from '../screens/admin/TherapistDeactivationScreen';
 import NotificationsScreen from '../screens/admin/NotificationsScreen';
 import SchedulingScreen from '../screens/admin/SchedulingScreen';
+
+// Secondary screens (accessible from dashboard or other screens)
+import FeedbackSection from '../components/admin/FeedbackSection';
+import FeeManagementScreen from '../screens/admin/FeeManagementScreen';
+import TherapistDeactivationScreen from '../screens/admin/TherapistDeactivationScreen';
 import LeaveRequestsScreen from '../screens/admin/LeaveRequestsScreen';
 import BroadcastNotificationsScreen from '../screens/admin/BroadcastNotificationsScreen';
-
 import InvoiceManagementScreen from '../screens/admin/InvoiceManagementScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 // Admin Tab Navigator Component
 const AdminTabNavigator = () => {
@@ -66,27 +68,7 @@ const AdminTabNavigator = () => {
         component={ChildManagementScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ChildrenSection"
-        component={ChildrenSection}
-        options={{
-          tabBarLabel: 'Children Mgmt',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="FeedbackSection"
-        component={FeedbackSection}
-        options={{
-          drawerLabel: 'Feedback Management',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+            <Ionicons name="people-circle-outline" size={size} color={color} />
           ),
         }}
       />
@@ -100,35 +82,6 @@ const AdminTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Complaints"
-        component={ComplaintsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="FeeManagement"
-        component={FeeManagementScreen}
-        options={{
-          tabBarLabel: 'Fee Management',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="cash-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Deactivation"
-        component={TherapistDeactivationScreen}
-        options={{
-          tabBarLabel: 'Deactivation',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="person-remove-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{
@@ -137,38 +90,97 @@ const AdminTabNavigator = () => {
           ),
         }}
       />
-      <Tab.Screen
-        name="LeaveRequests"
-        component={LeaveRequestsScreen}
-        options={{
-          tabBarLabel: 'Leave Requests',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Broadcast"
-        component={BroadcastNotificationsScreen}
-        options={{
-          drawerLabel: 'Broadcast Notifications',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="megaphone-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Invoices"
-        component={InvoiceManagementScreen}
-        options={{
-          tabBarLabel: 'Invoices',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
-          ),
-        }}
-      />
     </Tab.Navigator>
   );
 };
 
-export default AdminTabNavigator;
+// Main Admin Navigator with Stack for Secondary Screens
+const AdminNavigator = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="AdminTabs"
+    >
+      <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
+      <Stack.Screen 
+        name="Complaints" 
+        component={ComplaintsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Complaints',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="FeeManagement" 
+        component={FeeManagementScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Fee Management',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="InvoiceManagement" 
+        component={InvoiceManagementScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Invoice Management',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="LeaveRequests" 
+        component={LeaveRequestsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Leave Requests',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="BroadcastNotifications" 
+        component={BroadcastNotificationsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Broadcast Notifications',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="TherapistDeactivation" 
+        component={TherapistDeactivationScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Therapist Management',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+      <Stack.Screen 
+        name="Feedback" 
+        component={FeedbackSection}
+        options={{ 
+          headerShown: true, 
+          title: 'Feedback Management',
+          headerStyle: { backgroundColor: '#FF9500' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export default AdminNavigator;

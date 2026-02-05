@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  getAllFeedback,
   getFeedbackByChild,
   getFeedbackById,
   createFeedback,
@@ -16,6 +17,7 @@ router.route('/child/:childId')
 
 // Feedback CRUD operations
 router.route('/')
+  .get(protect, authorize('admin'), getAllFeedback)
   .post(protect, authorize('therapist', 'admin'), createFeedback);
 
 router.route('/:id')

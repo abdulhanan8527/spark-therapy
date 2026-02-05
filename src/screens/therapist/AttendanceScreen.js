@@ -27,7 +27,18 @@ const AttendanceScreen = () => {
 
       if (childrenRes.success) setChildren(childrenRes.data);
       if (sessionsRes.success) {
-        setSessions(sessionsRes.data.map(s => ({ ...s, status: s.status || 'scheduled' })));
+        // Map backend status to frontend display status
+        const backendToFrontendStatus = {
+          'completed': 'present',
+          'no-show': 'absent',
+          'scheduled': 'scheduled',
+          'cancelled': 'cancelled'
+        };
+        
+        setSessions(sessionsRes.data.map(s => ({ 
+          ...s, 
+          status: backendToFrontendStatus[s.status] || s.status || 'scheduled' 
+        })));
       }
     } catch (error) {
       console.error('Attendance fetch error:', error);
@@ -37,15 +48,28 @@ const AttendanceScreen = () => {
     }
   };
 
-  const markAttendance = async (sessionId, status) => {
+  const markAttendance = async (sessionId, attendanceStatus) => {
     try {
-      const response = await sessionAPI.updateSession(sessionId, { status });
+      // Map frontend status to backend enum values
+      // Frontend uses: 'present', 'absent'
+      // Backend expects: 'completed', 'no-show', 'scheduled', 'cancelled'
+      const statusMap = {
+        'present': 'completed',
+        'absent': 'no-show'
+      };
+      
+      const backendStatus = statusMap[attendanceStatus] || attendanceStatus;
+      console.log(`Marking attendance: ${attendanceStatus} -> ${backendStatus}`);
+      
+      const response = await sessionAPI.updateSession(sessionId, { status: backendStatus });
       if (response.success) {
+        // Update local state with frontend status for UI
         setSessions(sessions.map(s =>
-          s._id === sessionId ? { ...s, status } : s
+          s._id === sessionId ? { ...s, status: attendanceStatus } : s
         ));
       }
     } catch (error) {
+      console.error('Mark attendance error:', error);
       Alert.alert('Error', 'Failed to update attendance');
     }
   };

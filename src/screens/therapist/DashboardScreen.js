@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Users, Calendar, Clipboard, Bell, LogOut, ChevronRight } from '../../components/SimpleIcons';
+import { Users, Calendar, Clipboard, Bell, LogOut, ChevronRight, Play, FileText, Clock, Book } from '../../components/SimpleIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { childAPI, scheduleAPI, notificationAPI } from '../../services/api';
 import NavigationService from '../../utils/NavigationService';
@@ -140,21 +140,50 @@ const TherapistDashboardScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Workcenter</Text>
-          <View style={styles.actionRow}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={styles.quickActionCard}
               onPress={() => navigation.navigate('Programs')}
             >
-              <Clipboard size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Build Program</Text>
+              <View style={[styles.quickActionIcon, { backgroundColor: '#e8f5e9' }]}>
+                <Book size={24} color="#34c759" />
+              </View>
+              <Text style={styles.quickActionTitle}>Programs</Text>
+              <Text style={styles.quickActionSubtitle}>Build ABLLS-R programs</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#FF2D55' }]}
-              onPress={() => navigation.navigate('Feedback')}
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('Video')}
             >
-              <Users size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Session Lab</Text>
+              <View style={[styles.quickActionIcon, { backgroundColor: '#f3e5f5' }]}>
+                <Play size={24} color="#AF52DE" />
+              </View>
+              <Text style={styles.quickActionTitle}>Videos</Text>
+              <Text style={styles.quickActionSubtitle}>Weekly session videos</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('Reports')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#e3f2fd' }]}>
+                <FileText size={24} color="#007AFF" />
+              </View>
+              <Text style={styles.quickActionTitle}>Reports</Text>
+              <Text style={styles.quickActionSubtitle}>Quarterly reports</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('Leave')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#fff3e0' }]}>
+                <Clock size={24} color="#FF9500" />
+              </View>
+              <Text style={styles.quickActionTitle}>Leave</Text>
+              <Text style={styles.quickActionSubtitle}>Request time off</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -246,24 +275,42 @@ const styles = StyleSheet.create({
   quickActions: {
     marginTop: 32,
   },
-  actionRow: {
+  quickActionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
-  actionButton: {
+  quickActionCard: {
     flex: 1,
-    backgroundColor: '#34c759',
-    padding: 16,
+    minWidth: '47%',
+    backgroundColor: '#fff',
+    padding: 20,
     borderRadius: 16,
-    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 12,
   },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 15,
+  quickActionTitle: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  quickActionSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

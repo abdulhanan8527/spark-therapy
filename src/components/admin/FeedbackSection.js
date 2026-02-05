@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { sessionAPI, childAPI, therapistAPI } from '../../services/api';
+import { sessionAPI, childAPI, therapistAPI, feedbackAPI } from '../../services/api';
 
 const FeedbackSection = () => {
   const { user } = useAuth();
@@ -33,98 +33,45 @@ const FeedbackSection = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('=== FETCHING FEEDBACK DATA ===');
 
-      // In a real app, we would fetch feedback from the API
-      // For now, I'll create mock data to demonstrate the UI
-      const mockFeedback = [
-        {
-          _id: '1',
-          childId: '1',
-          childName: 'Emma Johnson',
-          therapistId: '1',
-          therapistName: 'Dr. Sarah Smith',
-          date: '2025-12-15',
-          mood: 'happy',
-          activities: ['Sensory play', 'Speech exercises'],
-          achievements: ['Improved eye contact', 'Completed puzzle'],
-          challenges: ['Difficulty focusing for extended periods'],
-          recommendations: ['Continue sensory integration exercises'],
-          status: 'reviewed',
-          notes: 'Good progress today, child was engaged throughout session',
-          createdAt: '2025-12-15T10:30:00Z',
-          updatedAt: '2025-12-15T11:00:00Z'
-        },
-        {
-          _id: '2',
-          childId: '2',
-          childName: 'Michael Chen',
-          therapistId: '2',
-          therapistName: 'Dr. James Wilson',
-          date: '2025-12-14',
-          mood: 'calm',
-          activities: ['Social skills training', 'Motor skill exercises'],
-          achievements: ['Successfully completed group activity'],
-          challenges: ['Reluctant to participate initially'],
-          recommendations: ['Consider shorter initial sessions'],
-          status: 'pending',
-          notes: 'Child showed improvement in social interaction',
-          createdAt: '2025-12-14T09:15:00Z',
-          updatedAt: '2025-12-14T09:15:00Z'
-        },
-        {
-          _id: '3',
-          childId: '3',
-          childName: 'Sophia Rodriguez',
-          therapistId: '1',
-          therapistName: 'Dr. Sarah Smith',
-          date: '2025-12-13',
-          mood: 'excited',
-          activities: ['Music therapy', 'Art therapy'],
-          achievements: ['Created beautiful artwork', 'Participated enthusiastically'],
-          challenges: ['None reported'],
-          recommendations: ['Continue music therapy sessions'],
-          status: 'approved',
-          notes: 'Outstanding session, child was very expressive',
-          createdAt: '2025-12-13T14:20:00Z',
-          updatedAt: '2025-12-13T15:00:00Z'
-        },
-        {
-          _id: '4',
-          childId: '4',
-          childName: 'Oliver Thompson',
-          therapistId: '3',
-          therapistName: 'Dr. Emily Davis',
-          date: '2025-12-12',
-          mood: 'frustrated',
-          activities: ['Fine motor skills', 'Cognitive exercises'],
-          achievements: ['Completed 3 out of 5 tasks'],
-          challenges: ['Frustrated with complex tasks'],
-          recommendations: ['Break tasks into smaller steps'],
-          status: 'needs_attention',
-          notes: 'Child needs additional support with complex tasks',
-          createdAt: '2025-12-12T11:45:00Z',
-          updatedAt: '2025-12-12T11:45:00Z'
-        },
-        {
-          _id: '5',
-          childId: '5',
-          childName: 'Ava Williams',
-          therapistId: '2',
-          therapistName: 'Dr. James Wilson',
-          date: '2025-12-11',
-          mood: 'happy',
-          activities: ['Language development', 'Play therapy'],
-          achievements: ['Used 5 new words', 'Initiated play with peers'],
-          challenges: ['Sometimes speaks too quietly'],
-          recommendations: ['Practice vocal projection exercises'],
-          status: 'reviewed',
-          notes: 'Great progress in language development',
-          createdAt: '2025-12-11T13:30:00Z',
-          updatedAt: '2025-12-11T14:00:00Z'
+      // Fetch real feedback from API
+      const feedbackRes = await feedbackAPI.getAllFeedback();
+      console.log('Feedback API response:', feedbackRes);
+      
+      if (feedbackRes.success) {
+        // Handle nested structure: response.data.feedback
+        const feedbackData = feedbackRes.data?.feedback || feedbackRes.data || [];
+        
+        if (Array.isArray(feedbackData)) {
+          // Map the feedback to include proper names from populated fields
+          const mappedFeedback = feedbackData.map(fb => ({
+            _id: fb._id,
+            childId: fb.childId?._id || fb.childId,
+            childName: fb.childId ? `${fb.childId.firstName || ''} ${fb.childId.lastName || ''}`.trim() : 'Unknown',
+            therapistId: fb.therapistId?._id || fb.therapistId,
+            therapistName: fb.therapistId ? `${fb.therapistId.firstName || ''} ${fb.therapistId.lastName || ''}`.trim() : 'Unknown',
+            date: fb.createdAt || fb.date,
+            mood: fb.mood || 'N/A',
+            activities: Array.isArray(fb.activities) ? fb.activities : [],
+            achievements: Array.isArray(fb.achievements) ? fb.achievements : [],
+            challenges: Array.isArray(fb.challenges) ? fb.challenges : [],
+            recommendations: Array.isArray(fb.recommendations) ? fb.recommendations : [],
+            status: fb.status || 'pending',
+            notes: fb.notes || '',
+            createdAt: fb.createdAt,
+            updatedAt: fb.updatedAt
+          }));
+          console.log(`Loaded ${mappedFeedback.length} feedback entries`);
+          setFeedbackList(mappedFeedback);
+        } else {
+          console.log('Feedback data is not an array');
+          setFeedbackList([]);
         }
-      ];
-
-      setFeedbackList(mockFeedback);
+      } else {
+        console.log('No feedback data or invalid response format');
+        setFeedbackList([]);
+      }
 
       // Fetch children data
       const childrenRes = await childAPI.getChildren();
@@ -146,51 +93,50 @@ const FeedbackSection = () => {
     } catch (error) {
       console.error('Error fetching data:', error?.message || error);
       Alert.alert('Error', 'Failed to load feedback data');
+      setFeedbackList([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApproveFeedback = (feedbackId) => {
-    Alert.alert(
-      'Approve Feedback',
-      'Are you sure you want to approve this feedback?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          style: 'default',
-          onPress: () => {
-            // In a real app, this would call an API to update the feedback status
-            setFeedbackList(feedbackList.map(fb => 
-              fb._id === feedbackId ? { ...fb, status: 'approved' } : fb
-            ));
-            Alert.alert('Success', 'Feedback approved successfully!');
-          }
-        }
-      ]
-    );
+  const handleApproveFeedback = async (feedbackId) => {
+    try {
+      console.log('Approving feedback:', feedbackId);
+      const response = await feedbackAPI.updateFeedback(feedbackId, { status: 'approved' });
+      
+      if (response.success) {
+        // Update local state
+        setFeedbackList(feedbackList.map(fb => 
+          fb._id === feedbackId ? { ...fb, status: 'approved' } : fb
+        ));
+        Alert.alert('Success', 'Feedback approved successfully!');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to approve feedback');
+      }
+    } catch (error) {
+      console.error('Error approving feedback:', error);
+      Alert.alert('Error', 'Failed to approve feedback');
+    }
   };
 
-  const handleMarkForReview = (feedbackId) => {
-    Alert.alert(
-      'Mark for Review',
-      'Are you sure you want to mark this feedback for review?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark for Review',
-          style: 'default',
-          onPress: () => {
-            // In a real app, this would call an API to update the feedback status
-            setFeedbackList(feedbackList.map(fb => 
-              fb._id === feedbackId ? { ...fb, status: 'needs_attention' } : fb
-            ));
-            Alert.alert('Success', 'Feedback marked for review!');
-          }
-        }
-      ]
-    );
+  const handleMarkForReview = async (feedbackId) => {
+    try {
+      console.log('Marking feedback for review:', feedbackId);
+      const response = await feedbackAPI.updateFeedback(feedbackId, { status: 'needs_attention' });
+      
+      if (response.success) {
+        // Update local state
+        setFeedbackList(feedbackList.map(fb => 
+          fb._id === feedbackId ? { ...fb, status: 'needs_attention' } : fb
+        ));
+        Alert.alert('Success', 'Feedback marked for review!');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to mark feedback for review');
+      }
+    } catch (error) {
+      console.error('Error marking feedback for review:', error);
+      Alert.alert('Error', 'Failed to mark feedback for review');
+    }
   };
 
   const filteredFeedback = feedbackList.filter(feedback => {

@@ -17,6 +17,9 @@ const ChildDetailsScreen = () => {
   
   const fetchChildrenData = async (isRefresh = false) => {
     try {
+      console.log('=== FETCHING THERAPIST CHILDREN ===');
+      console.log('Therapist ID:', user._id);
+      
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -25,14 +28,22 @@ const ChildDetailsScreen = () => {
       
       // Get children assigned to the current therapist
       const response = await therapistAPI.getChildren(user._id);
+      console.log('Children API response:', response);
+      
       if (response.success) {
         const fetchedChildren = response.data;
+        console.log(`Fetched ${fetchedChildren.length} children`);
         
         // Enhance each child with additional data
         const enhancedChildren = await Promise.all(
           fetchedChildren.map(async (child) => {
+            console.log('Processing child:', child);
+            
             // Calculate age from date of birth
             const age = calculateAge(child.dateOfBirth);
+            
+            // Construct full name from firstName and lastName
+            const fullName = `${child.firstName || ''} ${child.lastName || ''}`.trim() || 'Unknown';
             
             // Get programs for this child
             let programs = [];
@@ -74,9 +85,23 @@ const ChildDetailsScreen = () => {
             let recentActivities = [];
             try {
               const feedbackResponse = await feedbackAPI.getFeedbackByChild(child._id, { limit: 5 });
+              console.log('Feedback response for child:', child._id, feedbackResponse);
               if (feedbackResponse.success) {
+                // Handle nested data structure - extract array
+                let feedbackData = feedbackResponse.data;
+                if (feedbackData && feedbackData.data) {
+                  feedbackData = feedbackData.data;
+                }
+                if (feedbackData && feedbackData.feedback) {
+                  feedbackData = feedbackData.feedback;
+                }
+                            
+                // Ensure it's an array
+                const feedbackArray = Array.isArray(feedbackData) ? feedbackData : [];
+                console.log('Extracted feedback array:', feedbackArray.length, 'items');
+                            
                 // Map feedback to activities format
-                recentActivities = (feedbackResponse.data || []).slice(0, 5).map(fb => ({
+                recentActivities = feedbackArray.slice(0, 5).map(fb => ({
                   id: fb._id,
                   activity: fb.feedbackText || 'General Feedback',
                   date: formatDate(fb.createdAt),
@@ -93,7 +118,7 @@ const ChildDetailsScreen = () => {
             
             return {
               id: child._id,
-              name: child.name,
+              name: fullName,
               age,
               diagnosis: child.diagnosis || 'N/A',
               therapist: user.name,

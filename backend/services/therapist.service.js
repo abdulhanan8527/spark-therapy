@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Child = require('../models/Child');
+const Session = require('../models/Session');
 
 /**
  * Get all therapists
@@ -7,13 +8,87 @@ const Child = require('../models/Child');
  */
 const getAllTherapists = async () => {
   try {
+    console.log('=== THERAPIST SERVICE: GET ALL THERAPISTS ===');
     const therapists = await User.find({ role: 'therapist' });
+    
+    // Get start and end of current week
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7); // End of week
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    console.log('Current week range:', {
+      now: now.toISOString(),
+      startOfWeek: startOfWeek.toISOString(),
+      endOfWeek: endOfWeek.toISOString()
+    });
+    
+    // Enhance each therapist with children count and sessions this week
+    const enhancedTherapists = await Promise.all(
+      therapists.map(async (therapist) => {
+        const therapistObj = therapist.toObject();
+        
+        // Count children assigned to this therapist
+        const assignedChildren = await Child.countDocuments({ 
+          therapistId: therapist._id 
+        });
+        
+        console.log(`Querying sessions for therapist ${therapist.name} (${therapist._id})`);
+        console.log('Query:', {
+          therapistId: therapist._id,
+          startTime: {
+            $gte: startOfWeek,
+            $lt: endOfWeek
+          }
+        });
+        
+        // Get all sessions for this therapist (for debugging)
+        const allSessions = await Session.find({ therapistId: therapist._id });
+        console.log(`Total sessions for ${therapist.name}:`, allSessions.length);
+        allSessions.forEach(session => {
+          console.log('  - Session:', {
+            id: session._id,
+            startTime: session.startTime,
+            inRange: session.startTime >= startOfWeek && session.startTime < endOfWeek
+          });
+        });
+        
+        // Count sessions for this therapist this week
+        const sessionsThisWeek = await Session.countDocuments({
+          therapistId: therapist._id,
+          startTime: {
+            $gte: startOfWeek,
+            $lt: endOfWeek
+          }
+        });
+        
+        console.log(`Therapist ${therapist.name} (${therapist._id}):`, {
+          assignedChildren,
+          sessionsThisWeek
+        });
+        
+        return {
+          ...therapistObj,
+          assignedChildren,
+          sessionsThisWeek
+        };
+      })
+    );
+    
+    console.log('=== THERAPISTS ENHANCED WITH COUNTS ===');
+    console.log('Returning', enhancedTherapists.length, 'therapists');
+    console.log('Sample therapist with isActive:', enhancedTherapists[0]);
     return {
       success: true,
-      data: therapists,
+      data: enhancedTherapists,
       message: 'Therapists retrieved successfully'
     };
   } catch (error) {
+    console.error('Get all therapists error:', error);
     return {
       success: false,
       message: error.message,

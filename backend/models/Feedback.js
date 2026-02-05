@@ -49,6 +49,11 @@ const feedbackSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'reviewed', 'approved', 'needs_attention'],
+    default: 'pending'
   }
 }, {
   timestamps: true

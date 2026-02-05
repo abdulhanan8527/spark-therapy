@@ -58,6 +58,15 @@ const TherapistManagementScreen = () => {
         // Ensure we're setting an array
         const therapistsArray = Array.isArray(therapistData) ? therapistData : [];
         console.log(`Setting ${therapistsArray.length} therapists in state`);
+        
+        // Log each therapist's counts for debugging
+        therapistsArray.forEach(therapist => {
+          console.log(`Therapist ${therapist.name}:`, {
+            assignedChildren: therapist.assignedChildren,
+            sessionsThisWeek: therapist.sessionsThisWeek
+          });
+        });
+        
         setTherapists(therapistsArray);
       } else {
         Alert.alert('Error', response.message || 'Failed to fetch therapists');

@@ -110,6 +110,8 @@ app.use('/api/therapists', require('./routes/therapist.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/videos', require('./routes/video.routes'));
 app.use('/api/ablls', require('./routes/ablls.routes'));
+app.use('/api/feedback', require('./routes/feedback.routes'));
+app.use('/api/reports', require('./routes/report.routes')); // Quarterly reports
 app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api', require('./routes/health.routes')); // Health check routes
 
