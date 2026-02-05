@@ -12,6 +12,11 @@ const userSchemas = {
       is: 'therapist',
       then: Joi.string().optional().allow(''),
       otherwise: Joi.forbidden()
+    }),
+    adminSecretKey: Joi.when('role', {
+      is: 'admin',
+      then: Joi.string().required(),
+      otherwise: Joi.forbidden()
     })
   }),
 
